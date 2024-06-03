@@ -1,0 +1,81 @@
+CREATE TABLE IF NOT EXISTS ModInstance (
+    modId integer NOT NULL,
+    version text NOT NULL,
+    featureKey text REFERENCES ModFeature(key) ON DELETE SET NULL,
+    files text NOT NULL,
+    FOREIGN KEY(modId, version) REFERENCES Mod(id, version),
+    UNIQUE(modId, featureKey, version)
+);
+
+CREATE TABLE IF NOT EXISTS Mod(
+    id integer NOT NULL,
+    version text NOT NULL,
+    UNIQUE (id, version)
+);
+
+CREATE TABLE IF NOT EXISTS ModFeature(
+    key TEXT NOT NULL,
+    modId integer NOT NULL,
+    modFiles text NOT NULL,
+    version text NOT NULL,
+    FOREIGN KEY(modId, version) REFERENCES Mod(id, version) ON DELETE CASCADE,
+    UNIQUE(modId, key, version)
+);
+
+CREATE TABLE IF NOT EXISTS ModFeatureDependeny(
+    modId integer,
+    modVersion text,
+    modFeatureKey text REFERENCES ModFeature(key) ON DELETE SET NULL,
+    dependencyId integer,
+    dependencyVersion text,
+    dependencyFeatureKey text REFERENCES ModFeature(key),
+    FOREIGN KEY(modId, modVersion) REFERENCES Mod(id, version) ON DELETE SET NULL ,
+    FOREIGN KEY(dependencyId, dependencyVersion) REFERENCES Mod(id, version) ON DELETE SET NULL ,
+    UNIQUE(modId, modVersion, modFeatureKey, dependencyId, dependencyVersion, dependencyFeatureKey)
+);
+
+CREATE TABLE IF NOT EXISTS ModDescriptor(
+    id integer NOT NULL,
+    displayName text NOT NULL,
+    author text
+);
+
+CREATE TABLE ModTypeRelation(
+    modId INTEGER NOT NULL REFERENCES Mod(id) ON DELETE CASCADE,
+    featureKey text NOT NULL REFERENCES ModFeature(key) ON DELETE CASCADE,
+    clothingTypeKey text NOT NULL REFERENCES ClothingModTypeItem(clothingKey) ON DELETE SET NULL,
+    UNIQUE(modId, featureKey, clothingTypeKey)
+);
+
+CREATE TABLE IF NOT EXISTS ClothingModType(
+    key text UNIQUE NOT NULL,
+    mod_id integer NOT NULL,
+    FOREIGN KEY(mod_id) REFERENCES Mod(id)
+);
+
+CREATE TABLE IF NOT EXISTS ClothingModTypeItem(
+    clothingKey text UNIQUE NOT NULL,
+    modTypeKey text NOT NULL,
+    modId integer NOT NULL,
+    FOREIGN KEY(clothingKey) REFERENCES ClothingItem(key),
+    FOREIGN KEY(modTypeKey) REFERENCES ClothingModType(key),
+    FOREIGN KEY(modId) REFERENCES Mod(id)
+);
+
+CREATE TABLE IF NOT EXISTS ClothingItem(
+    key text UNIQUE NOT NULL,
+    gameItemName text NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS FeatureBodyMorph (
+    bodyMorphId integer NOT NULL,
+    modId integer NOT NULL,
+    featureKey text NOT NULL,
+    FOREIGN KEY(modId) REFERENCES Mod(id),
+    FOREIGN KEY(featureKey) REFERENCES ModFeature(key)
+);
+
+CREATE TABLE IF NOT EXISTS BodyMorph(
+    id integer UNIQUE NOT NULL,
+    name text NOT NULL
+);

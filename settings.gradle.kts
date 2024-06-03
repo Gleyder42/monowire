@@ -1,3 +1,3 @@
 rootProject.name = "monowire"
 
-include("common")
+include("common", "persistence", "mod-manager")

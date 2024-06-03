@@ -1,0 +1,8 @@
+addMod {
+    INSERT INTO Mod(id, version) VALUES (:modId, :modVersion);
+    INSERT INTO ModDescriptor(id, displayName, author) VALUES (:modId, :displayName, :author);
+}
+
+removeMod {
+    DELETE FROM Mod WHERE id == :modId;
+}

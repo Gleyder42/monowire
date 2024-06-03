@@ -11,16 +11,15 @@ import kotlin.io.path.*
 /**
  * Infix function for [Path.resolve]
  */
-@Suppress("NonAsciiCharacters")
-infix fun Path.`⫽`(other: Path): Path = this.resolve(other)
+infix fun Path.`|`(other: Path): Path = this.resolve(other)
 
 /**
  * Infix function for [Path.resolve]
  */
-@Suppress("NonAsciiCharacters")
-infix fun Path.`⫽`(other: String): Path = this.resolve(other)
+infix fun Path.`|`(other: String): Path = this.resolve(other)
 
 data class ListPathError(val message: String)
+
 
 /**
  * List all paths recursively inside the directory.
@@ -93,7 +92,7 @@ fun Path.copyDirectorySiblingsRecursively(dest: Path) = walkFileTree(CopyDirecto
  *     + g.txt
  * ```
  */
-fun Path.copyDirectoryRecursively(dest: Path) = walkFileTree(CopyDirectoryFileVisitor(this, dest))
+fun Path.copyDirectoryRecursivelyTo(dest: Path) = walkFileTree(CopyDirectoryFileVisitor(this, dest))
 
 /**
  * Moves all directory siblings to [dest].
@@ -148,6 +147,10 @@ fun Path.moveDirectorySiblingsRecursively(dest: Path) = walkFileTree(MoveDirecto
  */
 fun Path.moveDirectoryRecursively(dest: Path) = walkFileTree(MoveDirectoryFileVisitor(this, dest))
 
+class SafeDeleteError(val deletedFiles: List<Path>, val unableToDeleteFiles: List<Path>)
+
+fun Path.safeDeleteRecursively(): Either<SafeDeleteError, List<Path>> = TODO()
+
 /**
  * Result class for a copy or move operation
  */
@@ -196,7 +199,7 @@ private sealed class CopyFileVisitor(protected val src: Path, private val dest: 
 
     override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
         val relativePath = anchor.relativize(file)
-        val destPath = dest `⫽` relativePath
+        val destPath = dest `|` relativePath
 
         action(file, destPath)
         fromSrc.add(file)
