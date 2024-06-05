@@ -116,7 +116,6 @@ class PathExtensionTest {
         softly.assertThat(srcDir).doesNotExist()
     }
 
-
     @Test
     fun shouldThrowExceptionWhenListingNotExistentFile(@TempDir namespace: Path) {
         // Arrange
@@ -192,7 +191,6 @@ class PathExtensionTest {
 
             // Assert
             result extractBoth  { (left, right) ->
-
                 softly.assertThat(left).allSatisfy { it.failedFile.endsWith(lockedFileName) }
                 softly.assertThat(right.fromSrc).allSatisfy { it.endsWith(notLockedFile) }
                 softly.assertThat(right.toDest).allSatisfy { it.endsWith(notLockedFile) }
