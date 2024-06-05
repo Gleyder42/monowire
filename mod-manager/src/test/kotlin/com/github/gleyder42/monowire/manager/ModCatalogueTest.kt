@@ -1,15 +1,15 @@
 package com.github.gleyder42.monowire.manager
 
-import arrow.core.Either
 import com.github.gleyder42.monowire.common.TestData
+import com.github.gleyder42.monowire.common.extractLeft
 import com.github.gleyder42.monowire.common.model.DisplayName
 import com.github.gleyder42.monowire.common.model.ModId
 import com.github.gleyder42.monowire.common.model.ModVersion
 import com.github.gleyder42.monowire.persistence.sql.DatabaseControl
+import com.github.gleyder42.monowire.persistence.sql.ModCatalogueError
 import com.github.gleyder42.monowire.persistence.sql.SqlDataSourceModule
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.fail
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
@@ -80,13 +80,10 @@ class ModCatalogueTest : KoinTest {
         catalogue.addMod(mod)
 
         // Assert
-        when (val result = catalogue.addMod(mod)) {
-            is Either.Right -> {
-                // assertions ensure type safety
-                assertThat(result).isEqualTo(Unit)
-                fail("Expected an error but got none")
-            }
-            is Either.Left -> { /* Pass */ }
+        val result = catalogue.addMod(mod)
+        result extractLeft { left ->
+            // assertions ensure type safety
+            assertThat(left).isEqualTo(ModCatalogueError.DuplicateModError(mod.descriptor))
         }
     }
 
