@@ -1,10 +1,18 @@
 CREATE TABLE IF NOT EXISTS ModInstance (
     modId integer NOT NULL,
     version text NOT NULL,
-    featureKey text REFERENCES ModFeature(key) ON DELETE SET NULL,
-    files text NOT NULL,
+    featureKey text NOT NULL,
     FOREIGN KEY(modId, version) REFERENCES Mod(id, version),
+    FOREIGN KEY (modId, featureKey, version) REFERENCES ModFeature(modId, key, version) ON DELETE SET NULL,
     UNIQUE(modId, featureKey, version)
+);
+
+CREATE TABLE IF NOT EXISTS Files(
+    modId integer NOT NULL,
+    version text NOT NULL,
+    file text NOT NULL,
+    FOREIGN KEY(modId, version) REFERENCES Mod(id, version) ON DELETE CASCADE,
+    UNIQUE(modId, version, file)
 );
 
 CREATE TABLE IF NOT EXISTS Mod(

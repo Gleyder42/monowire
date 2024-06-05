@@ -76,7 +76,6 @@ class SqlModCatalogueDataSource : ModCatalogueDataSource, KoinComponent {
                 ModFeature(
                     ModPath.of(modFiles),
                     modVersion,
-                    modDetails,
                     ModFeatureDescriptor(ModFeatureKey(key), modId),
                     emptyList()
                 )

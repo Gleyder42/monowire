@@ -9,7 +9,12 @@ interface ModInstanceLibraryDataSource {
 
     suspend fun removeModInstance(descriptor: ModFeatureDescriptor)
 
-    suspend fun getModInstance(descriptor: ModFeatureDescriptor): ModInstance
+    suspend fun getModInstance(descriptor: ModFeatureDescriptor): ModInstance?
 
     suspend fun isInstalled(descriptor: ModFeatureDescriptor): Boolean
+
+    sealed interface Error {
+
+        data class FeatureNotInstalled(val feature: ModFeatureDescriptor) : Error
+    }
 }

@@ -1,8 +1,25 @@
-addMod {
-    INSERT INTO Mod(id, version) VALUES (:modId, :modVersion);
-    INSERT INTO ModDescriptor(id, displayName, author) VALUES (:modId, :displayName, :author);
+addModInstance {
+    INSERT INTO ModInstance(modId, version, featureKey)
+    VALUES(:id, :version, :featureKey);
 }
 
-removeMod {
-    DELETE FROM Mod WHERE id == :modId;
+addFileToModInstance {
+    INSERT INTO Files(modId, version, file)
+    VALUES(:id, :version, :file);
+}
+
+removeModInstance {
+    DELETE FROM ModInstance WHERE modId == :id AND featureKey == :featureKey;
+}
+
+getModInstance {
+    SELECT modId, version, featureKey
+    FROM ModInstance
+    WHERE modId == :id AND featureKey == :featureKey;
+}
+
+getModInstanceFiles {
+    SELECT file
+    FROM Files
+    WHERE modId == :id AND version == :version;
 }

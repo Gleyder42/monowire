@@ -1,7 +1,5 @@
 package com.github.gleyder42.monowire.common
 
-import arrow.core.Either
-import arrow.core.Ior
 import arrow.core.getOrElse
 import com.github.gleyder42.monowire.common.TestData.TEST_DATA_METHOD_SOURCE
 import org.assertj.core.api.Assertions.assertThat
@@ -15,7 +13,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
-import kotlin.io.path.*
+import kotlin.io.path.createDirectories
 
 @ExtendWith(SoftAssertionsExtension::class)
 class PathExtensionTest {

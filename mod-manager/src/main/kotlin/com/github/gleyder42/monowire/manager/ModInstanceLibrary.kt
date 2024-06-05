@@ -4,9 +4,10 @@ import arrow.core.Either
 import arrow.core.Ior
 import arrow.core.raise.either
 import arrow.core.raise.ensureNotNull
-import com.github.gleyder42.monowire.common.copyDirectoryRecursivelyTo
+import com.github.gleyder42.monowire.common.copyDirectorySiblingsRecursivelyTo
 import com.github.gleyder42.monowire.common.model.ModFeature
 import com.github.gleyder42.monowire.common.model.ModFeatureDescriptor
+import com.github.gleyder42.monowire.common.model.ModFiles
 import com.github.gleyder42.monowire.common.model.ModInstance
 import com.github.gleyder42.monowire.persistence.datasource.ModInstanceLibraryDataSource
 import org.koin.core.component.KoinComponent
@@ -22,7 +23,7 @@ class ModInstanceLibrary : KoinComponent {
 
     suspend fun install(feature: ModFeature): Either<ModUninstallError, Unit> = either {
         // Copy the files into the game directory
-        val copyResult = when (val modFiles = feature.modPath.copyDirectoryRecursivelyTo(gameDirectory)) {
+        val copyResult = when (val modFiles = feature.modPath.copyDirectorySiblingsRecursivelyTo(gameDirectory)) {
             is Ior.Left -> raise(ModUninstallError.CannotDeleteFiles(modFiles.value.map { it.failedFile }.toList()))
             is Ior.Both -> raise(ModUninstallError.CannotDeleteFiles(modFiles.leftValue.map { it.failedFile }.toList()))
             is Ior.Right -> { modFiles.value }
@@ -32,7 +33,6 @@ class ModInstanceLibrary : KoinComponent {
         val modInstance = ModInstance(
             copyResult.toDest,
             feature.version,
-            feature.modDetails,
             feature.descriptor
         )
 
@@ -40,7 +40,7 @@ class ModInstanceLibrary : KoinComponent {
         dataSource.addModInstance(modInstance)
     }
 
-    suspend fun uninstall(descriptor: ModFeatureDescriptor): Either<ModUninstallError, List<Path>> = either {
+    suspend fun uninstall(descriptor: ModFeatureDescriptor): Either<ModUninstallError, ModFiles> = either {
         val installed = dataSource.getModInstance(descriptor)
         ensureNotNull(installed) { ModUninstallError.ModDoesNotExist(descriptor) }
 
@@ -52,7 +52,7 @@ class ModInstanceLibrary : KoinComponent {
         dataSource.removeModInstance(descriptor)
 
         // TODO Add option to just move files out instead of deleting them
-        TODO()
+        installed.installedFiles
     }
 }
 

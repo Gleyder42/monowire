@@ -10,7 +10,13 @@ typealias ModFiles = Set<Path>
 value class ModVersion(val string: String)
 
 @JvmInline
-value class ModId(val integer: Int)
+value class ModId(val integer: Int) {
+
+    constructor(long: Long) : this(long.toInt())
+
+    val long: Long
+        get() = integer.toLong()
+}
 
 @JvmInline
 value class ModFeatureKey(val string: String)
@@ -40,7 +46,6 @@ data class Mod(
 data class ModFeature(
     val modPath: ModPath,
     val version: ModVersion,
-    val modDetails: ModDetails,
     val descriptor: ModFeatureDescriptor,
     val dependencies: List<ModFeature>,
 )

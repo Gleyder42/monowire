@@ -38,6 +38,8 @@ fun Path.listFilesRecursively(): Either<IOException, List<Path>> {
     return this.listPathsRecursively { !it.isDirectory() }
 }
 
+fun Path.listFilesRecursivelyOrEmpty(): List<Path> = this.listFilesRecursively().getOrElse { emptyList() }
+
 /**
  * Copies all directory siblings to [dest].
  *

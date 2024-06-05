@@ -4,16 +4,6 @@ import com.github.gleyder42.monowire.common.model.*
 import org.koin.core.component.KoinComponent
 import kotlin.io.path.nameWithoutExtension
 
-sealed interface ModImporterError : ModFeatureImporterError {
-
-    data class ModAlreadyExists(val modId: ModId) : ModImporterError
-}
-
-sealed interface ModFeatureImporterError {
-
-    data class CannotFindMod(val modDescriptor: ModDescriptor) : ModFeatureImporterError
-}
-
 object ModFeatureImporter : KoinComponent {
 
     fun importModFeatureAsMod(
@@ -28,8 +18,7 @@ object ModFeatureImporter : KoinComponent {
         val feature = ModFeature(
             path,
             modVersion,
-            details,
-            ModFeatureDescriptor(ModFeatureKey(path.nameWithoutExtension), modId),
+            ModFeatureDescriptor(fromPathName(path), modId),
             emptyList()
         )
 
@@ -40,4 +29,11 @@ object ModFeatureImporter : KoinComponent {
             listOf(feature)
         )
     }
+
+    fun importFeature(modDescriptor: ModDescriptor, path: ReadOnlyPath): ModFeature {
+        val descriptor = ModFeatureDescriptor(fromPathName(path), modDescriptor.id)
+        return ModFeature(path, modDescriptor.version, descriptor, emptyList())
+    }
+
+    private fun fromPathName(path: ReadOnlyPath) = ModFeatureKey(path.nameWithoutExtension)
 }
