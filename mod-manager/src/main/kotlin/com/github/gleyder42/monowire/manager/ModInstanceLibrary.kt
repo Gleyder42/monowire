@@ -22,18 +22,15 @@ class ModInstanceLibrary : KoinComponent {
 
     suspend fun install(feature: ModFeature): Either<ModUninstallError, Unit> = either {
         // Copy the files into the game directory
-        val modFiles = feature.modPath.copyDirectoryRecursivelyTo(gameDirectory)
-
-        when (modFiles) {
+        val copyResult = when (val modFiles = feature.modPath.copyDirectoryRecursivelyTo(gameDirectory)) {
             is Ior.Left -> raise(ModUninstallError.CannotDeleteFiles(modFiles.value.map { it.failedFile }.toList()))
             is Ior.Both -> raise(ModUninstallError.CannotDeleteFiles(modFiles.leftValue.map { it.failedFile }.toList()))
-            is Ior.Right -> { /* If 'Right' continue the method */
-            }
+            is Ior.Right -> { modFiles.value }
         }
 
         // Update the changes
         val modInstance = ModInstance(
-            modFiles.value.toDest,
+            copyResult.toDest,
             feature.version,
             feature.modDetails,
             feature.descriptor

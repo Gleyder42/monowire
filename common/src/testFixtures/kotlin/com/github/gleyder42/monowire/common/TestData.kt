@@ -21,9 +21,9 @@ object TestData {
             // We are only interested in the namespace path prepended with the working directory, so we have
             // an absolute path.
             @Suppress("NAME_SHADOWING")
-            val namespace = workingDir `|` namespace
+            val namespace = workingDir resolve namespace
 
-            Arguments.of(namespace, dir(namespace `|` fs.getPath(SRC_NAME), dirBuilder), expectedPaths)
+            Arguments.of(namespace, dir(namespace resolve fs.getPath(SRC_NAME), dirBuilder), expectedPaths)
         }
 
         return arrayOf(

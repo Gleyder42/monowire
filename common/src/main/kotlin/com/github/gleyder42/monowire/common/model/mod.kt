@@ -4,7 +4,7 @@ import java.nio.file.Path
 
 typealias ModPath = Path
 
-typealias ModFiles = List<Path>
+typealias ModFiles = Set<Path>
 
 @JvmInline
 value class ModVersion(val string: String)

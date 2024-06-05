@@ -5,7 +5,6 @@ import com.github.gleyder42.monowire.common.TestData
 import com.github.gleyder42.monowire.common.model.DisplayName
 import com.github.gleyder42.monowire.common.model.ModId
 import com.github.gleyder42.monowire.common.model.ModVersion
-import com.github.gleyder42.monowire.common.`|`
 import com.github.gleyder42.monowire.persistence.sql.DatabaseControl
 import com.github.gleyder42.monowire.persistence.sql.SqlDataSourceModule
 import kotlinx.coroutines.test.runTest
@@ -33,7 +32,7 @@ class ModCatalogueTest : KoinTest {
                 TestModule().module,
                 SqlDataSourceModule().module,
                 SqlDataSourceModule.sqliteModule,
-                module { single<String>(SqlDataSourceModule.DB_PATH_KEY) { (namespace `|` "database").toString() } }
+                module { single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() } }
             )
         }
         get<DatabaseControl>().createSchema()
@@ -64,7 +63,7 @@ class ModCatalogueTest : KoinTest {
                 TestModule().module,
                 SqlDataSourceModule().module,
                 SqlDataSourceModule.sqliteModule,
-                module { single<String>(SqlDataSourceModule.DB_PATH_KEY) { (namespace `|` "database").toString() } }
+                module { single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() } }
             )
         }
 

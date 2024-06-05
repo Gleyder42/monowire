@@ -1,8 +1,8 @@
 package com.github.gleyder42.monowire.common
 
 import arrow.core.*
+import arrow.core.raise.catch
 import arrow.core.raise.either
-import arrow.core.raise.ensure
 import java.io.IOException
 import java.nio.file.*
 import java.nio.file.attribute.BasicFileAttributes
@@ -11,29 +11,22 @@ import kotlin.io.path.*
 /**
  * Infix function for [Path.resolve]
  */
-infix fun Path.`|`(other: Path): Path = this.resolve(other)
+infix fun Path.resolve(other: Path): Path = this.resolve(other)
 
 /**
  * Infix function for [Path.resolve]
  */
-infix fun Path.`|`(other: String): Path = this.resolve(other)
-
-data class ListPathError(val message: String)
-
+infix fun Path.resolve(other: String): Path = this.resolve(other)
 
 /**
  * List all paths recursively inside the directory.
  *
  * Returns [Either.Left] if the path does not exist, otherwise a list of all paths.
  */
-fun Path.listPathsRecursively(filter: (Path) -> Boolean): Either<ListPathError, List<Path>> = either {
+fun Path.listPathsRecursively(filter: (Path) -> Boolean): Either<IOException, List<Path>> = either {
     val path = this@listPathsRecursively
 
-    ensure(path.exists()) {
-        ListPathError("Cannot list paths because $path does not exist")
-    }
-
-    Files.walk(path).use { it.skip(1).filter(filter).toList() }
+    catch({Files.walk(path).use { it.skip(1).filter(filter).toList() }}) { exception: IOException -> raise(exception) }
 }
 
 /**
@@ -41,7 +34,7 @@ fun Path.listPathsRecursively(filter: (Path) -> Boolean): Either<ListPathError, 
  *
  * Returns [Either.Left] if the path does not exist, otherwise a list of all paths.
  */
-fun Path.listFilesRecursively(): Either<ListPathError, List<Path>>  {
+fun Path.listFilesRecursively(): Either<IOException, List<Path>> {
     return this.listPathsRecursively { !it.isDirectory() }
 }
 
@@ -67,7 +60,7 @@ fun Path.listFilesRecursively(): Either<ListPathError, List<Path>>  {
  *   + g.txt
  * ```
  */
-fun Path.copyDirectorySiblingsRecursively(dest: Path) = walkFileTree(CopyDirectorySiblingsFileVisitor(this, dest))
+fun Path.copyDirectorySiblingsRecursivelyTo(dest: Path) = test(dest, this, ::copyAction, ::keepDirectory)
 
 /**
  * Copies all directory to [dest].
@@ -92,7 +85,7 @@ fun Path.copyDirectorySiblingsRecursively(dest: Path) = walkFileTree(CopyDirecto
  *     + g.txt
  * ```
  */
-fun Path.copyDirectoryRecursivelyTo(dest: Path) = walkFileTree(CopyDirectoryFileVisitor(this, dest))
+fun Path.copyDirectoryRecursivelyTo(dest: Path) = test(dest, this.parent, ::copyAction, ::keepDirectory)
 
 /**
  * Moves all directory siblings to [dest].
@@ -118,7 +111,11 @@ fun Path.copyDirectoryRecursivelyTo(dest: Path) = walkFileTree(CopyDirectoryFile
  *   + g.txt
  * ```
  */
-fun Path.moveDirectorySiblingsRecursively(dest: Path) = walkFileTree(MoveDirectorySiblingsFileVisitor(this, dest))
+fun Path.moveDirectorySiblingsRecursivelyTo(dest: Path) = test(
+    dest,
+    this,
+    ::moveAction
+) { errors, dir, exc -> deleteDirectory(errors = errors, src = this, deleteSrc = false, dir = dir, exc = exc) }
 
 
 /**
@@ -145,11 +142,39 @@ fun Path.moveDirectorySiblingsRecursively(dest: Path) = walkFileTree(MoveDirecto
  *     + g.txt
  * ```
  */
-fun Path.moveDirectoryRecursively(dest: Path) = walkFileTree(MoveDirectoryFileVisitor(this, dest))
+fun Path.moveDirectoryRecursivelyTo(dest: Path) = test(dest, this.parent, ::moveAction) { errors, dir, exc ->
+    deleteDirectory(
+        errors = errors,
+        src = this,
+        deleteSrc = true,
+        dir = dir,
+        exc = exc
+    )
+}
 
-class SafeDeleteError(val deletedFiles: List<Path>, val unableToDeleteFiles: List<Path>)
+fun Path.safeDeleteRecursively(deleteSource: Boolean = false): Ior<NonEmptyList<FileVisitorError>, List<Path>> {
+    val errors: FileVisitorErrorSet = mutableSetOf()
+    val deleted = mutableListOf<Path>()
 
-fun Path.safeDeleteRecursively(): Either<SafeDeleteError, List<Path>> = TODO()
+    val visitor = CompositeFileVisitor(
+        preVisitDirectory = ::keepDirectory,
+        visitFile = { file: Path, _: BasicFileAttributes ->
+            file.deleteExisting()
+            deleted.add(file)
+            FileVisitResult.CONTINUE
+        },
+        visitFileFailed = { file, exc -> recordFailError(errors = errors, file = file, exc = exc) },
+        postVisitDirectory = { dir, exc -> deleteDirectory(errors, src = this, deleteSource, dir, exc) }
+    )
+    Files.walkFileTree(this, visitor)
+
+    val nonEmptyErrors = errors.toNonEmptyListOrNull()
+    return if (nonEmptyErrors != null) {
+        (nonEmptyErrors to deleted).bothIor()
+    } else {
+        deleted.rightIor()
+    }
+}
 
 /**
  * Result class for a copy or move operation
@@ -158,114 +183,152 @@ data class CopyResult(
     /**
      * Contains the source paths which were moved or copied.
      */
-    val fromSrc: List<Path>,
+    val fromSrc: Set<Path>,
 
     /**
      * Contains the destination paths which were moved or copied.
      */
-    val toDest: List<Path>
-)
+    val toDest: Set<Path>
+) {
+    val isEmpty: Boolean
+        get() = fromSrc.isEmpty() && toDest.isEmpty()
+}
 
 data class FileVisitorError(val failedFile: Path, val exception: IOException)
 
-private fun Path.walkFileTree(visitor: CopyFileVisitor): Ior<NonEmptyList<FileVisitorError>, CopyResult> {
-    Files.walkFileTree(this@walkFileTree, visitor)
-    val errors = visitor.errors.toNonEmptyListOrNull()
-    if (errors != null) {
-        return errors.leftIor()
-    }
+private class CompositeFileVisitor(
+    private val preVisitDirectory: (dir: Path, attrs: BasicFileAttributes) -> FileVisitResult,
+    private val visitFile: (file: Path, attrs: BasicFileAttributes) -> FileVisitResult,
+    private val visitFileFailed: (file: Path, exc: IOException) -> FileVisitResult,
+    private val postVisitDirectory: (dir: Path, exc: IOException?) -> FileVisitResult
+) : FileVisitor<Path> {
+    // Use .invoke() here so Kotlin can differentiate between function and property
+    override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes) = preVisitDirectory.invoke(dir, attrs)
 
-    return visitor.result.rightIor()
+    override fun visitFile(file: Path, attrs: BasicFileAttributes) = visitFile.invoke(file, attrs)
+
+    override fun visitFileFailed(file: Path, exc: IOException) = visitFileFailed.invoke(file, exc)
+
+    override fun postVisitDirectory(dir: Path, exc: IOException?) = postVisitDirectory.invoke(dir, exc)
 }
 
-private sealed class CopyFileVisitor(protected val src: Path, private val dest: Path) : FileVisitor<Path> {
+typealias FileVisitorErrorSet = MutableSet<FileVisitorError>
 
-    protected val ioExceptions = mutableListOf<FileVisitorError>()
+// This method should do nothing, therefore parameters are not used
+@Suppress("UNUSED_PARAMETER")
+fun keepDirectory(path: Path, attr: BasicFileAttributes) = FileVisitResult.CONTINUE
 
-    val fromSrc: MutableList<Path> = mutableListOf()
-    val toDest: MutableList<Path> = mutableListOf()
+// This method should do nothing, therefore parameters are not used
+@Suppress("UNUSED_PARAMETER")
+fun keepDirectory(errors: FileVisitorErrorSet, dir: Path, exc: IOException?) = FileVisitResult.CONTINUE
 
-    val errors: List<FileVisitorError>
-        get() = ioExceptions.toList()
+fun deleteDirectory(
+    errors: FileVisitorErrorSet,
+    src: Path,
+    deleteSrc: Boolean,
+    dir: Path,
+    exc: IOException?
+): FileVisitResult {
+    if (exc == null && (dir != src || deleteSrc)) {
+        try {
+            dir.deleteExisting()
+        } catch (exception: DirectoryNotEmptyException) {
+            errors.add(FileVisitorError(dir, exception))
+        } catch (exception: NoSuchFileException) {
+            // NoSuchFileException should never be thrown.
+            // dir must exist because it is supplied by the FileVisitor
+            // visiting a not existing file does not make sense
+            errors.add(FileVisitorError(dir, exception))
+        }
+    }
+    return FileVisitResult.CONTINUE
+}
 
-    val result: CopyResult
-        get() = CopyResult(fromSrc, toDest)
+fun Path.setup(setup: (fromSrc: MutableSet<Path>, toDest: MutableSet<Path>, errors: FileVisitorErrorSet) -> FileVisitor<Path>): Ior<NonEmptyList<FileVisitorError>, CopyResult> {
+    val fromSrc: MutableSet<Path> = mutableSetOf()
+    val toDest: MutableSet<Path> = mutableSetOf()
+    val errors: FileVisitorErrorSet = mutableSetOf()
 
-    abstract val anchor: Path
+    val visitor = setup(fromSrc, toDest, errors)
+    Files.walkFileTree(this, visitor)
 
-    abstract fun action(srcPath: Path, destPath: Path)
+    val result = CopyResult(fromSrc = fromSrc, toDest = toDest)
+    val nonEmptyErrors = errors.toNonEmptyListOrNull()
+    return when {
+        nonEmptyErrors == null -> result.rightIor()
+        result.isEmpty -> nonEmptyErrors.leftIor()
+        else -> (nonEmptyErrors to result).bothIor()
+    }
+}
 
-    override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes) = FileVisitResult.CONTINUE
+fun Path.test(
+    dest: Path,
+    anchor: Path,
+    action: (srcPath: Path, destPath: Path) -> Unit,
+    postVisitDirectory: (errors: FileVisitorErrorSet, dir: Path, exc: IOException?) -> FileVisitResult
+): Ior<NonEmptyList<FileVisitorError>, CopyResult> {
+    return setup { fromSrc, toDest, errors ->
+        CompositeFileVisitor(
+            preVisitDirectory = ::keepDirectory,
+            visitFile = { file: Path, _: BasicFileAttributes ->
+                visitAndLogFile(
+                    action = { srcPath, destPath ->
+                        try {
+                            action(srcPath, destPath)
+                            true
+                        } catch (exception: IOException) {
+                            // We create an error for both src and dest
+                            errors.add(FileVisitorError(srcPath, exception))
+                            errors.add(FileVisitorError(destPath, exception))
+                            false
+                        }
+                    },
+                    file = file,
+                    dest = dest,
+                    anchor = anchor,
+                    fromSrc = fromSrc,
+                    toDest = toDest
+                )
+            },
+            visitFileFailed = { file, exc -> recordFailError(errors = errors, file = file, exc = exc) },
+            postVisitDirectory = { dir, exc -> postVisitDirectory(errors, dir, exc) }
+        )
+    }
+}
 
-    override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
-        val relativePath = anchor.relativize(file)
-        val destPath = dest `|` relativePath
+fun visitAndLogFile(
+    action: (srcPath: Path, destPath: Path) -> Boolean,
+    file: Path,
+    dest: Path,
+    anchor: Path,
+    fromSrc: MutableSet<Path>,
+    toDest: MutableSet<Path>
+): FileVisitResult {
+    val relativePath = anchor.relativize(file)
+    val destPath = dest resolve relativePath
 
-        action(file, destPath)
+    val successful = action(file, destPath)
+    if (successful) {
         fromSrc.add(file)
         toDest.add(destPath)
-
-        return FileVisitResult.CONTINUE
     }
 
-    override fun visitFileFailed(file: Path, exc: IOException): FileVisitResult {
-        ioExceptions.add(FileVisitorError(file, exc))
-        return FileVisitResult.CONTINUE
-    }
+    return FileVisitResult.CONTINUE
 }
 
-private open class CopyDirectorySiblingsFileVisitor(src: Path, dest: Path) : CopyFileVisitor(src, dest) {
-
-    override val anchor: Path
-        get() = src
-
-    override fun action(srcPath: Path, destPath: Path) {
-        destPath.createParentDirectories()
-        srcPath.copyTo(destPath)
-    }
-
-    override fun postVisitDirectory(dir: Path?, exc: IOException?): FileVisitResult {
-        // Nothing because we copy
-        return FileVisitResult.CONTINUE
-    }
+fun copyAction(srcPath: Path, destPath: Path) {
+    destPath.createParentDirectories()
+    srcPath.copyTo(destPath)
 }
 
-private class CopyDirectoryFileVisitor(src: Path, dest: Path) : CopyDirectorySiblingsFileVisitor(src, dest) {
-
-    override val anchor: Path
-        get() = src.parent
+fun moveAction(srcPath: Path, destPath: Path) {
+    destPath.createParentDirectories()
+    srcPath.moveTo(destPath)
 }
 
-private open class MoveDirectorySiblingsFileVisitor(
-    src: Path,
-    dest: Path,
-    private val deleteSrc: Boolean = false
-) : CopyFileVisitor(src, dest) {
-
-    override val anchor: Path
-        get() = src
-
-    override fun action(srcPath: Path, destPath: Path) {
-        destPath.createParentDirectories()
-        srcPath.moveTo(destPath)
-    }
-
-    override fun postVisitDirectory(dir: Path, exc: IOException?): FileVisitResult {
-        if (exc == null && (dir != src || deleteSrc)) {
-            try {
-                dir.deleteExisting()
-            } catch (exception: DirectoryNotEmptyException) {
-                ioExceptions.add(FileVisitorError(dir, exception))
-            }
-        }
-
-        // Nothing because we copy
-        return FileVisitResult.CONTINUE
-    }
+fun recordFailError(errors: FileVisitorErrorSet, file: Path, exc: IOException): FileVisitResult {
+    errors.add(FileVisitorError(file, exc))
+    return FileVisitResult.CONTINUE
 }
 
-private class MoveDirectoryFileVisitor(src: Path, dest: Path): MoveDirectorySiblingsFileVisitor(src, dest, true) {
 
-    override val anchor: Path
-        get() = src.parent
-}

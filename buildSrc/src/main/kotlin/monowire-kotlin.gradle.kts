@@ -36,6 +36,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
     testImplementation("org.assertj:assertj-core:3.25.1")
 
+    testFixturesImplementation("org.assertj:assertj-core:3.25.1")
     testFixturesImplementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
     testFixturesImplementation(kotlin("test"))
 }
