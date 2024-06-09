@@ -1,5 +1,6 @@
 package com.github.gleyder42.monowire.common
 
+import arrow.core.Ior
 import arrow.core.getOrElse
 import com.github.gleyder42.monowire.common.TestData.TEST_DATA_METHOD_SOURCE
 import org.assertj.core.api.Assertions.assertThat
@@ -125,9 +126,9 @@ class PathExtensionTest {
         val result = path.listFilesRecursively()
 
         // Assert
-        result extractLeft { left ->
-            assertThat(left).isInstanceOf(NoSuchFileException::class.java)
-        }
+        assertLeft(result)
+
+        assertThat(result.value).isInstanceOf(NoSuchFileException::class.java)
     }
 
     @Test
@@ -145,9 +146,9 @@ class PathExtensionTest {
             val result = path.moveDirectorySiblingsRecursivelyTo(dest)
 
             // Assert
-            result extractLeft { left ->
-                assertThat(left).allSatisfy { it.failedFile.endsWith(name) }
-            }
+            assertLeft(result)
+
+            assertThat(result.value).allSatisfy { it.failedFile.endsWith(name) }
         }
     }
 
@@ -166,10 +167,10 @@ class PathExtensionTest {
             val result = path.copyDirectorySiblingsRecursivelyTo(dest)
 
             // Assert
-            result extractRight { right ->
-                softly.assertThat(right.fromSrc).allSatisfy { it.endsWith(name) }
-                softly.assertThat(right.toDest).allSatisfy { it.endsWith(name) }
-            }
+            assertRight(result)
+
+            softly.assertThat((result as Ior.Right).value.fromSrc).allSatisfy {  it.endsWith(name) }
+            softly.assertThat(result.value.toDest).allSatisfy { it.endsWith(name) }
         }
     }
 
@@ -190,11 +191,11 @@ class PathExtensionTest {
             val result = path.moveDirectorySiblingsRecursivelyTo(dest)
 
             // Assert
-            result extractBoth  { (left, right) ->
-                softly.assertThat(left).allSatisfy { it.failedFile.endsWith(lockedFileName) }
-                softly.assertThat(right.fromSrc).allSatisfy { it.endsWith(notLockedFile) }
-                softly.assertThat(right.toDest).allSatisfy { it.endsWith(notLockedFile) }
-            }
+            assertBoth(result)
+
+            softly.assertThat(result.leftValue).allSatisfy { it.failedFile.endsWith(lockedFileName) }
+            softly.assertThat(result.rightValue.fromSrc).allSatisfy { it.endsWith(notLockedFile) }
+            softly.assertThat(result.rightValue.toDest).allSatisfy { it.endsWith(notLockedFile) }
         }
     }
 }

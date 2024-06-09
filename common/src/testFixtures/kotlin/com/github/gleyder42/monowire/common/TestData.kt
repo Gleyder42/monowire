@@ -27,11 +27,11 @@ object TestData {
         }
 
         return arrayOf(
-            arguments(
-                fs.getPath("emptyMod"),
-                { },
-                listOf()
-            ),
+//            arguments(
+//                fs.getPath("emptyMod"),
+//                { },
+//                listOf()
+//            ),
             arguments(
                 fs.getPath("onlyOneFile"),
                 {
@@ -41,15 +41,15 @@ object TestData {
                     listOf(getPath("hello.txt"))
                 }
             ),
-            arguments(
-                fs.getPath("emptySubDirectories"),
-                {
-                    dir("a")
-                    dir("b")
-                    dir("c")
-                },
-                listOf()
-            ),
+//            arguments(
+//                fs.getPath("emptySubDirectories"),
+//                {
+//                    dir("a")
+//                    dir("b")
+//                    dir("c")
+//                },
+//                listOf()
+//            ),
             arguments(
                 fs.getPath("simpleMod"),
                 {

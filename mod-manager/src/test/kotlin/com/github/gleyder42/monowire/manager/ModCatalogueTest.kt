@@ -1,7 +1,7 @@
 package com.github.gleyder42.monowire.manager
 
 import com.github.gleyder42.monowire.common.TestData
-import com.github.gleyder42.monowire.common.extractLeft
+import com.github.gleyder42.monowire.common.assertLeft
 import com.github.gleyder42.monowire.common.model.DisplayName
 import com.github.gleyder42.monowire.common.model.ModId
 import com.github.gleyder42.monowire.common.model.ModVersion
@@ -29,9 +29,8 @@ class ModCatalogueTest : KoinTest {
         // Arrange
         startKoin {
             modules(
-                TestModule().module,
                 SqlDataSourceModule().module,
-                SqlDataSourceModule.sqliteModule,
+                SqlDataSourceModule.sqlDriverModule,
                 module { single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() } }
             )
         }
@@ -60,9 +59,8 @@ class ModCatalogueTest : KoinTest {
         // Arrange
         startKoin {
             modules(
-                TestModule().module,
                 SqlDataSourceModule().module,
-                SqlDataSourceModule.sqliteModule,
+                SqlDataSourceModule.sqlDriverModule,
                 module { single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() } }
             )
         }
@@ -81,10 +79,10 @@ class ModCatalogueTest : KoinTest {
 
         // Assert
         val result = catalogue.addMod(mod)
-        result extractLeft { left ->
-            // assertions ensure type safety
-            assertThat(left).isEqualTo(ModCatalogueError.DuplicateModError(mod.descriptor))
-        }
+
+        assertLeft(result)
+
+        assertThat(result.value).isEqualTo(ModCatalogueError.DuplicateModError(mod.descriptor))
     }
 
     @AfterEach

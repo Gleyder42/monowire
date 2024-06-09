@@ -8,6 +8,7 @@ import org.koin.core.annotation.Module
 import org.koin.core.annotation.Single
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import org.koin.core.module.dsl.singleOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import java.util.*
@@ -20,7 +21,7 @@ class SqlDataSourceModule {
 
         val DB_PATH_KEY = named("dbPath")
 
-        val sqliteModule = module {
+        val sqlDriverModule = module {
             // We need to JdbcSqliteDriver here, so we have access closeConnection() and closeConnection() methods.
             // The close method from the Closable interface is empty (likely a bug).
             // Therefore, the specialized JdbcSqliteDriver interface is required instead of the more general SqlDriver.
@@ -31,10 +32,11 @@ class SqlDataSourceModule {
                 )
             }
             // Other components use SqlDriver, so we can also access the driver through the general SqlDriver interface.
-            single<SqlDriver> { get<JdbcSqliteDriver>() }
             // Cannot use constructor DSL, because Database() is not a constructor,
             // but an overloaded invoke method on Database companion object.
+            single<SqlDriver> { get<JdbcSqliteDriver>() }
             single { Database(get()) }
+            singleOf(::DatabaseControl)
         }
     }
 }

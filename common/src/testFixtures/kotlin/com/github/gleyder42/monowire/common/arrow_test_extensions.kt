@@ -2,42 +2,56 @@ package com.github.gleyder42.monowire.common
 
 import arrow.core.Either
 import arrow.core.Ior
-import org.junit.jupiter.api.fail
+import org.assertj.core.api.Assertions
+import kotlin.contracts.contract
 
-infix fun <A, B> Either<A, B>.extractLeft(assert: (left: A)->Unit) {
-    when (this) {
-        is Either.Left -> assert(this.value)
-        is Either.Right -> fail("Expected left, but got right ${this.value}")
+fun <A, B> assertLeft(actual: Either<A, B>) {
+    contract {
+        returns() implies (actual is Either.Left)
     }
+
+    Assertions.assertThat(actual)
+        .`as`("check is Either.Left")
+        .isInstanceOf(Either.Left::class.java)
 }
 
-infix fun <A, B> Either<A, B>.extractRight(assert: (right: B)->Unit) {
-    when (this) {
-        is Either.Left -> fail("Expected right, but got left ${this.value}")
-        is Either.Right -> assert(this.value)
+fun <A, B> assertRight(actual: Either<A, B>) {
+    contract {
+        returns() implies (actual is Either.Right)
     }
+
+    Assertions.assertThat(actual)
+        .`as`("check is Either.Right")
+        .isInstanceOf(Either.Right::class.java)
 }
 
-infix fun <A, B> Ior<A, B>.extractLeft(assert: (left: A)->Unit) {
-    when (this) {
-        is Ior.Left -> assert(this.value)
-        is Ior.Both -> fail("Expected left, but got both ${this.leftValue} and ${this.rightValue}")
-        is Ior.Right -> fail("Expected left, but got right ${this.value}")
+
+fun <A, B> assertLeft(actual: Ior<A, B>) {
+    contract {
+        returns() implies (actual is Ior.Left)
     }
+
+    Assertions.assertThat(actual)
+        .`as`("check is Ior.Left")
+        .isInstanceOf(Ior.Left::class.java)
 }
 
-infix fun <A, B> Ior<A, B>.extractBoth(assert: (both: Pair<A, B>)->Unit) {
-    when (this) {
-        is Ior.Left -> fail("Expected both, but got left ${this.value}")
-        is Ior.Both -> assert(this.leftValue to this.rightValue)
-        is Ior.Right -> fail("Expected both, but got right ${this.value}")
+fun <A, B> assertRight(actual: Ior<A, B>) {
+    contract {
+        returns() implies (actual is Ior.Right)
     }
+
+    Assertions.assertThat(actual)
+        .`as`("check is Ior.Right")
+        .isInstanceOf(Ior.Right::class.java)
 }
 
-infix fun <A, B> Ior<A, B>.extractRight(assert: (right: B)->Unit) {
-    when (this) {
-        is Ior.Left -> fail("Expected right, but got left ${this.value}")
-        is Ior.Both -> fail("Expected right, both ${this.leftValue} and ${this.rightValue}")
-        is Ior.Right -> assert(this.value)
+fun <A, B> assertBoth(actual: Ior<A, B>) {
+    contract {
+        returns() implies (actual is Ior.Both)
     }
+
+    Assertions.assertThat(actual)
+        .`as`("check is Ior.Both")
+        .isInstanceOf(Ior.Both::class.java)
 }

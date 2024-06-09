@@ -12,4 +12,7 @@ dependencies {
 
     testImplementation(testFixtures(project(":common")))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    // https://mvnrepository.com/artifact/org.mockito/mockito-core
+    testImplementation("org.mockito:mockito-core:5.12.0")
+
 }

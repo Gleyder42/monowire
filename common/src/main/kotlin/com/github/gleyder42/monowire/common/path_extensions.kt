@@ -23,10 +23,12 @@ infix fun Path.resolve(other: String): Path = this.resolve(other)
  *
  * Returns [Either.Left] if the path does not exist, otherwise a list of all paths.
  */
-fun Path.listPathsRecursively(filter: (Path) -> Boolean): Either<IOException, List<Path>> = either {
+fun Path.listPathsRecursively(filter: (Path) -> Boolean = { true }): Either<IOException, List<Path>> = either {
     val path = this@listPathsRecursively
 
-    catch({Files.walk(path).use { it.skip(1).filter(filter).toList() }}) { exception: IOException -> raise(exception) }
+    catch({
+        Files.walk(path).use { it.skip(1).filter(filter).toList() }
+    }) { exception: IOException -> raise(exception) }
 }
 
 /**
@@ -154,9 +156,9 @@ fun Path.moveDirectoryRecursivelyTo(dest: Path) = test(dest, this.parent, ::move
     )
 }
 
-fun Path.safeDeleteRecursively(deleteSource: Boolean = false): Ior<NonEmptyList<FileVisitorError>, List<Path>> {
+fun Path.safeDeleteRecursively(deleteSource: Boolean = false): IorNel<FileError, Set<Path>> {
     val errors: FileVisitorErrorSet = mutableSetOf()
-    val deleted = mutableListOf<Path>()
+    val deleted = mutableSetOf<Path>()
 
     val visitor = CompositeFileVisitor(
         preVisitDirectory = ::keepDirectory,
@@ -178,6 +180,13 @@ fun Path.safeDeleteRecursively(deleteSource: Boolean = false): Ior<NonEmptyList<
     }
 }
 
+fun Path.safeDelete(): Either<FileError, Path> = either {
+    catch({
+        this@safeDelete.deleteExisting()
+        this@safeDelete
+    }) { exception: IOException -> raise(FileError(this@safeDelete, exception)) }
+}
+
 /**
  * Result class for a copy or move operation
  */
@@ -196,7 +205,10 @@ data class CopyResult(
         get() = fromSrc.isEmpty() && toDest.isEmpty()
 }
 
-data class FileVisitorError(val failedFile: Path, val exception: IOException)
+data class FileError(val failedFile: Path, val exception: IOException) {
+
+    override fun toString() = "FileError(\n\tfailedFile=$failedFile,\n\texception=$exception)"
+}
 
 private class CompositeFileVisitor(
     private val preVisitDirectory: (dir: Path, attrs: BasicFileAttributes) -> FileVisitResult,
@@ -214,17 +226,17 @@ private class CompositeFileVisitor(
     override fun postVisitDirectory(dir: Path, exc: IOException?) = postVisitDirectory.invoke(dir, exc)
 }
 
-typealias FileVisitorErrorSet = MutableSet<FileVisitorError>
+typealias FileVisitorErrorSet = MutableSet<FileError>
 
 // This method should do nothing, therefore parameters are not used
 @Suppress("UNUSED_PARAMETER")
-fun keepDirectory(path: Path, attr: BasicFileAttributes) = FileVisitResult.CONTINUE
+private fun keepDirectory(path: Path, attr: BasicFileAttributes) = FileVisitResult.CONTINUE
 
 // This method should do nothing, therefore parameters are not used
 @Suppress("UNUSED_PARAMETER")
-fun keepDirectory(errors: FileVisitorErrorSet, dir: Path, exc: IOException?) = FileVisitResult.CONTINUE
+private fun keepDirectory(errors: FileVisitorErrorSet, dir: Path, exc: IOException?) = FileVisitResult.CONTINUE
 
-fun deleteDirectory(
+private fun deleteDirectory(
     errors: FileVisitorErrorSet,
     src: Path,
     deleteSrc: Boolean,
@@ -235,18 +247,18 @@ fun deleteDirectory(
         try {
             dir.deleteExisting()
         } catch (exception: DirectoryNotEmptyException) {
-            errors.add(FileVisitorError(dir, exception))
+            errors.add(FileError(dir, exception))
         } catch (exception: NoSuchFileException) {
             // NoSuchFileException should never be thrown.
             // dir must exist because it is supplied by the FileVisitor
             // visiting a not existing file does not make sense
-            errors.add(FileVisitorError(dir, exception))
+            errors.add(FileError(dir, exception))
         }
     }
     return FileVisitResult.CONTINUE
 }
 
-fun Path.setup(setup: (fromSrc: MutableSet<Path>, toDest: MutableSet<Path>, errors: FileVisitorErrorSet) -> FileVisitor<Path>): Ior<NonEmptyList<FileVisitorError>, CopyResult> {
+private fun Path.setup(setup: (fromSrc: MutableSet<Path>, toDest: MutableSet<Path>, errors: FileVisitorErrorSet) -> FileVisitor<Path>): IorNel<FileError, CopyResult> {
     val fromSrc: MutableSet<Path> = mutableSetOf()
     val toDest: MutableSet<Path> = mutableSetOf()
     val errors: FileVisitorErrorSet = mutableSetOf()
@@ -255,20 +267,16 @@ fun Path.setup(setup: (fromSrc: MutableSet<Path>, toDest: MutableSet<Path>, erro
     Files.walkFileTree(this, visitor)
 
     val result = CopyResult(fromSrc = fromSrc, toDest = toDest)
-    val nonEmptyErrors = errors.toNonEmptyListOrNull()
-    return when {
-        nonEmptyErrors == null -> result.rightIor()
-        result.isEmpty -> nonEmptyErrors.leftIor()
-        else -> (nonEmptyErrors to result).bothIor()
-    }
+
+    return (errors to result).ior { result.isEmpty }
 }
 
-fun Path.test(
+private fun Path.test(
     dest: Path,
     anchor: Path,
     action: (srcPath: Path, destPath: Path) -> Unit,
     postVisitDirectory: (errors: FileVisitorErrorSet, dir: Path, exc: IOException?) -> FileVisitResult
-): Ior<NonEmptyList<FileVisitorError>, CopyResult> {
+): IorNel<FileError, CopyResult> {
     return setup { fromSrc, toDest, errors ->
         CompositeFileVisitor(
             preVisitDirectory = ::keepDirectory,
@@ -280,8 +288,8 @@ fun Path.test(
                             true
                         } catch (exception: IOException) {
                             // We create an error for both src and dest
-                            errors.add(FileVisitorError(srcPath, exception))
-                            errors.add(FileVisitorError(destPath, exception))
+                            errors.add(FileError(srcPath, exception))
+                            errors.add(FileError(destPath, exception))
                             false
                         }
                     },
@@ -298,7 +306,7 @@ fun Path.test(
     }
 }
 
-fun visitAndLogFile(
+private fun visitAndLogFile(
     action: (srcPath: Path, destPath: Path) -> Boolean,
     file: Path,
     dest: Path,
@@ -318,19 +326,21 @@ fun visitAndLogFile(
     return FileVisitResult.CONTINUE
 }
 
-fun copyAction(srcPath: Path, destPath: Path) {
+private fun copyAction(srcPath: Path, destPath: Path) {
     destPath.createParentDirectories()
     srcPath.copyTo(destPath)
 }
 
-fun moveAction(srcPath: Path, destPath: Path) {
+private fun moveAction(srcPath: Path, destPath: Path) {
     destPath.createParentDirectories()
     srcPath.moveTo(destPath)
 }
 
-fun recordFailError(errors: FileVisitorErrorSet, file: Path, exc: IOException): FileVisitResult {
-    errors.add(FileVisitorError(file, exc))
+private fun recordFailError(errors: FileVisitorErrorSet, file: Path, exc: IOException): FileVisitResult {
+    errors.add(FileError(file, exc))
     return FileVisitResult.CONTINUE
 }
 
+fun Iterable<Path>.relativizeTo(path: Path): Iterable<Path> = this.map { path.relativize(it) }
 
+fun Path.relativizeTo(path: Path): Path = path.relativize(this)

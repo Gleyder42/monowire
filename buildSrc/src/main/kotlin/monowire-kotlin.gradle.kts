@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
+
 plugins {
     `java-library`
     kotlin("jvm")
@@ -11,6 +13,10 @@ repositories {
 
 sourceSets.main {
     kotlin.srcDirs("build/generated/ksp/main/kotlin")
+}
+
+kotlin {
+    compilerOptions.optIn.add("kotlin.contracts.ExperimentalContracts")
 }
 
 dependencies {

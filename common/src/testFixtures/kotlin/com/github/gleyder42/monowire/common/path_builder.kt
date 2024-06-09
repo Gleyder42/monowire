@@ -8,13 +8,15 @@ import kotlin.io.path.createFile
 
 typealias PathBuilderFunction = PathBuilder.() -> Unit
 
+typealias ScopedPathBuilderFunction = ScopedPathBuilder.()->Unit
+
 fun dir(path: Path, builder: PathBuilderFunction = {}): Path {
     path.createDirectories()
     builder(PathBuilder(path))
     return path
 }
 
-fun scopedDir(path: Path, builder: ScopedPathBuilder.()->Unit = {}): Pair<Path, ScopedPathBuilder> {
+fun scopedDir(path: Path, builder: ScopedPathBuilderFunction = {}): Pair<Path, ScopedPathBuilder> {
     path.createDirectories()
     val pathBuilder = ScopedPathBuilder(path)
     builder(pathBuilder)
@@ -51,5 +53,6 @@ class ScopedPathBuilder(path: Path) : PathBuilder(path), Closeable {
 
     override fun close() {
         openFiles.forEach { it.close() }
+        openFiles.clear()
     }
 }
