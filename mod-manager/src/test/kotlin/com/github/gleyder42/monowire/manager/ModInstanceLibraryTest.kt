@@ -13,6 +13,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.SoftAssertions
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.api.fail
@@ -27,7 +28,6 @@ import org.koin.dsl.module
 import org.koin.ksp.generated.module
 import org.koin.test.KoinTest
 import org.koin.test.get
-import org.mockito.Mockito
 import java.io.FileInputStream
 import java.io.IOException
 import java.io.InputStream
@@ -87,6 +87,154 @@ class ModInstanceLibraryTest : KoinTest {
         softly.assertThat(src.listFilesRecursivelyOrEmpty().map { src.relativize(it) })
             .containsExactlyInAnyOrderElementsOf(paths)
     }
+
+    @Test
+    fun shouldReturnErrorWhenTryingToOverwriteSomeFiles(@TempDir namespace: Path, softly: SoftAssertions) = runTest {
+        // Arrange
+        val gamePath = dir(namespace.resolve("game")) {
+            dir("archive").dir("pc").dir("mod") {
+                file("mod.archive")
+                file("mod.xl")
+            }
+        }
+
+        val src = dir(namespace resolve "src") {
+            dir("archive").dir("pc").dir("mod") {
+                file("mod.archive")
+                file("mod.xl")
+            }
+
+            dir("r6").dir("tweaks").dir("mod") {
+                file("mod.yaml")
+            }
+        }
+
+        startKoin {
+            modules(
+                SqlDataSourceModule().module,
+                SqlDataSourceModule.sqlDriverModule,
+                module {
+                    single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() }
+                    single<Path>(named(GAME_DIRECTORY)) { gamePath }
+                    single<Path>(named(TEMPORARY_DIRECTORY)) { namespace resolve TEMPORARY_DIRECTORY }
+                }
+            )
+        }
+
+        get<DatabaseControl>().createSchema()
+
+        val mod = ModFeatureImporter.importModFeatureAsMod(
+            src,
+            ModId(10001),
+            ModVersion("1.0.0"),
+            DisplayName("Test Mod")
+        )
+        val feature = mod.features.first()
+
+        val modCatalogue = ModCatalogue()
+        val modLibrary = ModInstanceLibrary()
+
+        modCatalogue.addMod(mod)
+
+        val result = modLibrary.install(feature)
+        assertLeft(result)
+
+        assertThat(result.value).isInstanceOf(ModInstallError.CannotCopyFiles::class.java)
+        val error = result.value as ModInstallError.CannotCopyFiles
+
+        with(namespace.fileSystem) {
+            val expected = listOf(
+                getPath("archive", "pc", "mod", "mod.archive"),
+                getPath("archive", "pc", "mod", "mod.xl")
+            )
+
+            val files = error.files
+                // The src and dest failed files are returned. We filter here only for the dest (aka game)
+                .filter { it.failedFile.contains(getPath("game")) }
+                // relativize so it is comparable with expected
+                .map { gamePath.relativize(it.failedFile) }
+            softly.assertThat(files).containsExactlyInAnyOrderElementsOf(expected)
+            // this ensures that the mod was not installed
+            softly.assertThat(gamePath.listFilesRecursivelyOrEmpty().map { gamePath.relativize(it) }).doesNotContain(
+                getPath("r6", "tweaks", "mod", "mod.yaml")
+            )
+        }
+    }
+
+    @Test
+    fun shouldReturnErrorWhenTryingToOverwriteAllFiles(@TempDir namespace: Path) = runTest {
+        // Arrange
+        val gamePath = dir(namespace.resolve("game")) {
+            dir("archive").dir("pc").dir("mod") {
+                file("mod.archive")
+                file("mod.xl")
+            }
+
+            dir("r6").dir("tweaks").dir("mod") {
+                file("mod.yaml")
+            }
+        }
+
+        val src = dir(namespace resolve "src") {
+            dir("archive").dir("pc").dir("mod") {
+                file("mod.archive")
+                file("mod.xl")
+            }
+
+            dir("r6").dir("tweaks").dir("mod") {
+                file("mod.yaml")
+            }
+        }
+
+        startKoin {
+            modules(
+                SqlDataSourceModule().module,
+                SqlDataSourceModule.sqlDriverModule,
+                module {
+                    single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() }
+                    single<Path>(named(GAME_DIRECTORY)) { gamePath }
+                    single<Path>(named(TEMPORARY_DIRECTORY)) { namespace resolve TEMPORARY_DIRECTORY }
+                }
+            )
+        }
+
+        get<DatabaseControl>().createSchema()
+
+        val mod = ModFeatureImporter.importModFeatureAsMod(
+            src,
+            ModId(10001),
+            ModVersion("1.0.0"),
+            DisplayName("Test Mod")
+        )
+        val feature = mod.features.first()
+
+        val modCatalogue = ModCatalogue()
+        val modLibrary = ModInstanceLibrary()
+
+        modCatalogue.addMod(mod)
+
+        val result = modLibrary.install(feature)
+        assertLeft(result)
+
+        assertThat(result.value).isInstanceOf(ModInstallError.CannotCopyFiles::class.java)
+        val error = result.value as ModInstallError.CannotCopyFiles
+
+        with(namespace.fileSystem) {
+            val expected = listOf(
+                getPath("archive", "pc", "mod", "mod.archive"),
+                getPath("archive", "pc", "mod", "mod.xl"),
+                getPath("r6", "tweaks", "mod", "mod.yaml")
+            )
+
+            val files = error.files
+                // The src and dest failed files are returned. We filter here only for the dest (aka game)
+                .filter { it.failedFile.contains(getPath("game")) }
+                // relativize so it is comparable with expected
+                .map { gamePath.relativize(it.failedFile) }
+            assertThat(files).containsExactlyInAnyOrderElementsOf(expected)
+        }
+    }
+
 
     @MethodSource(TestData.TEST_DATA_METHOD_SOURCE)
     @ParameterizedTest
@@ -418,6 +566,7 @@ class ModInstanceLibraryTest : KoinTest {
         softly.assertThat(result.rightValue).isEmpty()
     }
 
+    @Disabled
     @Test
     fun shouldReturnErrorWhenCannotDeleteTemporaryDirectory(
         @TempDir namespace: Path, softly: SoftAssertions

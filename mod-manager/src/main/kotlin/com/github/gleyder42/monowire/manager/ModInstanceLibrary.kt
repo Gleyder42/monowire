@@ -1,7 +1,6 @@
 package com.github.gleyder42.monowire.manager
 
 import arrow.core.*
-import arrow.core.raise.either
 import com.github.gleyder42.monowire.common.*
 import com.github.gleyder42.monowire.common.model.ModFeature
 import com.github.gleyder42.monowire.common.model.ModFeatureDescriptor
@@ -29,13 +28,13 @@ class ModInstanceLibrary : KoinComponent {
 
     suspend fun install(feature: ModFeature): Ior<ModInstallError, ModFiles> {
         // Copy the files into the game directory
-        val copyResult = when (val modFiles = feature.modPath.copyDirectorySiblingsRecursivelyTo(gameDirectory)) {
-            is Ior.Left -> return ModInstallError.CannotCopyFiles(modFiles.value).leftIor()
+        val copyResult = when (val copyResult = feature.modPath.copyDirectorySiblingsRecursivelyTo(gameDirectory)) {
+            is Ior.Left -> return ModInstallError.CannotCopyFiles(copyResult.value).leftIor()
             is Ior.Both -> {
-                val wereCopied = modFiles.rightValue.toDest.toMutableSet()
+                val wereCopied = copyResult.rightValue.toDest.toMutableSet()
 
                 val cannotBeDeleted = mutableSetOf<FileError>()
-                for (path in modFiles.rightValue.toDest) {
+                for (path in copyResult.rightValue.toDest) {
                     when (val result = path.safeDelete()) {
                         is Either.Left -> cannotBeDeleted.add(result.value)
                         is Either.Right -> wereCopied.remove(result.value)
@@ -48,9 +47,9 @@ class ModInstanceLibrary : KoinComponent {
                     return (error to wereCopied).bothIor()
                 }
 
-                return ModInstallError.CannotCopyFiles(modFiles.leftValue).leftIor()
+                return ModInstallError.CannotCopyFiles(copyResult.leftValue).leftIor()
             }
-            is Ior.Right -> modFiles.value
+            is Ior.Right -> copyResult.value
         }
 
         // Update the changes
@@ -143,7 +142,7 @@ data class FileMoveResult(val src: Path, val dest: Path)
 
 sealed interface ModInstallError {
 
-    data class CannotCopyFiles(val error: NonEmptyList<FileError>) : ModInstallError
+    data class CannotCopyFiles(val files: NonEmptyList<FileError>) : ModInstallError
 
     data class CannotCleanUpFiles(val error: NonEmptyList<FileError>) : ModInstallError
 }
