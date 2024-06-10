@@ -5,14 +5,16 @@ import com.github.gleyder42.monowire.common.*
 import com.github.gleyder42.monowire.common.model.*
 import com.github.gleyder42.monowire.persistence.sql.DatabaseControl
 import com.github.gleyder42.monowire.persistence.sql.SqlDataSourceModule
+import io.mockk.every
+import io.mockk.mockkClass
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.SoftAssertions
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.junit.jupiter.api.extension.RegisterExtension
 import org.junit.jupiter.api.fail
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
@@ -25,6 +27,8 @@ import org.koin.dsl.module
 import org.koin.ksp.generated.module
 import org.koin.test.KoinTest
 import org.koin.test.get
+import org.koin.test.junit5.mock.MockProviderExtension
+import org.koin.test.mock.declareMock
 import java.io.FileInputStream
 import java.io.IOException
 import java.io.InputStream
@@ -40,6 +44,12 @@ private const val TEMPORARY_DIRECTORY = "temporary"
 @ExtendWith(RepresentationExtension::class)
 @ExtendWith(SoftAssertionsExtension::class)
 class ModInstanceLibraryTest : KoinTest {
+
+    @JvmField
+    @RegisterExtension
+    val mockProvider = MockProviderExtension.create { clazz ->
+        mockkClass(clazz)
+    }
 
     @MethodSource(TestData.TEST_DATA_METHOD_SOURCE)
     @ParameterizedTest
@@ -353,9 +363,8 @@ class ModInstanceLibraryTest : KoinTest {
         softly.assertThat(result.rightValue).isEmpty()
     }
 
-    @Disabled
     @Test
-    fun shouldReturnErrorWhenCannotDeleteTemporaryDirectory(
+    fun `should return error when some files cannot be deleted from the temporary directory`(
         @TempDir namespace: Path, softly: SoftAssertions
     ) = runTest {
         // Arrange
@@ -371,6 +380,31 @@ class ModInstanceLibraryTest : KoinTest {
         }
 
         val (_, _, modLibrary, mod) = modSetup(namespace, srcDir)
+
+        declareMock<PathHelper> {
+            val fs = namespace.fileSystem
+            val both = Ior.Both(
+                leftValue = nonEmptyListOf(
+                    FileError(
+                        fs.getPath("archive", "pc", "mod", "mod.archive"),
+                        IOException()
+                    ),
+                    FileError(
+                        fs.getPath("archive", "pc", "mod", "mod.xl"),
+                        IOException()
+                    )
+                ),
+                rightValue = setOf(fs.getPath("r6", "tweaks", "mod", "mod.yaml"))
+            )
+
+            every {
+                safeDeleteRecursively(
+                    match { path -> path.any { it == fs.getPath(TEMPORARY_DIRECTORY) } },
+                    eq(true)
+                )
+            } returns both
+        }
+
         val feature = mod.features.first()
         assertRight(modLibrary.install(feature))
 
@@ -381,19 +415,168 @@ class ModInstanceLibraryTest : KoinTest {
         val result = modLibrary.uninstall(feature.descriptor)
 
         // Assert
+
         assertBoth(result)
         assertThat(result.leftValue).isInstanceOf(ModUninstallError.CannotDeleteTemporaryDirectory::class.java)
         val error = result.leftValue as ModUninstallError.CannotDeleteTemporaryDirectory
-        val expected = with(namespace.fileSystem) {
-            listOf(
+
+        with(namespace.fileSystem) {
+            val expected = listOf(
                 getPath("archive", "pc", "mod", "mod.archive"),
                 getPath("archive", "pc", "mod", "mod.xl"),
             )
+
+            assertThat(error.cannotDelete.map { it.failedFile })
+                .containsExactlyInAnyOrderElementsOf(expected)
+            assertThat(result.rightValue)
+                .containsExactlyInAnyOrder(
+                    getPath("r6", "tweaks", "mod", "mod.yaml")
+                )
         }
-        assertThat(error.cannotDelete.map { namespace.relativize(it.failedFile) }).containsExactlyInAnyOrderElementsOf(
-            expected
-        )
     }
+
+    @Test
+    fun `should return error when all files cannot be deleted from the temporary directory`(
+        @TempDir namespace: Path, softly: SoftAssertions
+    ) = runTest {
+        // Arrange
+        val srcDir = dir(namespace resolve "src") {
+            dir("archive").dir("pc").dir("mod") {
+                file("mod.archive")
+                file("mod.xl")
+            }
+
+            dir("r6").dir("tweaks").dir("mod") {
+                file("mod.yaml")
+            }
+        }
+
+        val (_, _, modLibrary, mod) = modSetup(namespace, srcDir)
+
+        declareMock<PathHelper> {
+            val fs = namespace.fileSystem
+            val left = Ior.Left(
+                nonEmptyListOf(
+                    FileError(
+                        fs.getPath("archive", "pc", "mod", "mod.archive"),
+                        IOException()
+                    ),
+                    FileError(
+                        fs.getPath("archive", "pc", "mod", "mod.xl"),
+                        IOException()
+                    ),
+                    FileError(
+                        fs.getPath("r6", "tweaks", "mod", "mod.yaml"),
+                        IOException()
+                    )
+                )
+            )
+
+            every {
+                safeDeleteRecursively(
+                    match { path -> path.any { it == fs.getPath(TEMPORARY_DIRECTORY) } },
+                    eq(true)
+                )
+            } returns left
+        }
+
+        val feature = mod.features.first()
+        assertRight(modLibrary.install(feature))
+
+        val resolve = namespace.resolve(TEMPORARY_DIRECTORY)
+        resolve.createDirectories()
+
+        // Act
+        val result = modLibrary.uninstall(feature.descriptor)
+
+        // Assert
+        assertLeft(result)
+        assertThat(result.value).isInstanceOf(ModUninstallError.CannotDeleteTemporaryDirectory::class.java)
+        val error = result.value as ModUninstallError.CannotDeleteTemporaryDirectory
+
+        with(namespace.fileSystem) {
+            val expected = listOf(
+                getPath("archive", "pc", "mod", "mod.archive"),
+                getPath("archive", "pc", "mod", "mod.xl"),
+                getPath("r6", "tweaks", "mod", "mod.yaml"),
+            )
+
+            assertThat(error.cannotDelete.map { it.failedFile })
+                .containsExactlyInAnyOrderElementsOf(expected)
+        }
+    }
+
+    @Test
+    fun `should return error when mod files cannot be recoverd from temporary directory`(
+        @TempDir namespace: Path, softly: SoftAssertions
+    ) = runTest {
+        // Arrange
+        val srcDir = dir(namespace resolve "src") {
+            dir("archive").dir("pc").dir("mod") {
+                file("mod.archive")
+                file("mod.xl")
+            }
+
+            dir("r6").dir("tweaks").dir("mod") {
+                file("mod.yaml")
+            }
+        }
+
+        val (_, _, modLibrary, mod) = modSetup(namespace, srcDir)
+
+        declareMock<PathHelper> {
+            val fs = namespace.fileSystem
+            val left = Ior.Left(
+                nonEmptyListOf(
+                    FileError(
+                        fs.getPath("archive", "pc", "mod", "mod.archive"),
+                        IOException()
+                    ),
+                    FileError(
+                        fs.getPath("archive", "pc", "mod", "mod.xl"),
+                        IOException()
+                    ),
+                    FileError(
+                        fs.getPath("r6", "tweaks", "mod", "mod.yaml"),
+                        IOException()
+                    )
+                )
+            )
+
+            every {
+                safeDeleteRecursively(
+                    match { path -> path.any { it == fs.getPath(TEMPORARY_DIRECTORY) } },
+                    eq(true)
+                )
+            } returns left
+        }
+
+        val feature = mod.features.first()
+        assertRight(modLibrary.install(feature))
+
+        val resolve = namespace.resolve(TEMPORARY_DIRECTORY)
+        resolve.createDirectories()
+
+        // Act
+        val result = modLibrary.uninstall(feature.descriptor)
+
+        // Assert
+        assertLeft(result)
+        assertThat(result.value).isInstanceOf(ModUninstallError.CannotDeleteTemporaryDirectory::class.java)
+        val error = result.value as ModUninstallError.CannotDeleteTemporaryDirectory
+
+        with(namespace.fileSystem) {
+            val expected = listOf(
+                getPath("archive", "pc", "mod", "mod.archive"),
+                getPath("archive", "pc", "mod", "mod.xl"),
+                getPath("r6", "tweaks", "mod", "mod.yaml"),
+            )
+
+            assertThat(error.cannotDelete.map { it.failedFile })
+                .containsExactlyInAnyOrderElementsOf(expected)
+        }
+    }
+
 
     @AfterEach
     fun teardown() {
@@ -433,6 +616,7 @@ class ModInstanceLibraryTest : KoinTest {
             modules(
                 SqlDataSourceModule().module,
                 SqlDataSourceModule.sqlDriverModule,
+                CommonModule.module,
                 module {
                     single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() }
                     single<Path>(named(GAME_DIRECTORY)) { gamePath }

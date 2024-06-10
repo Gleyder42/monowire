@@ -109,7 +109,7 @@ class PathExtensionTest {
     @ParameterizedTest
     fun shouldSafeDeleteDirectoryRecursively(namespace: Path, srcDir: Path, paths: List<Path>, softly: SoftAssertions) {
         // Act
-        val deletedPaths = srcDir.safeDeleteRecursively(deleteSource = true).getOrElse { fail(it.toString()) }
+        val deletedPaths = PathHelper().safeDeleteRecursively(srcDir, deleteSource = true).getOrElse { fail(it.toString()) }
 
         // Assert
         val expectedSrc = paths.map { srcDir resolve it }

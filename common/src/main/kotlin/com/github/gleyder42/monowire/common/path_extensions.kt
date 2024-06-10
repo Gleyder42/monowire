@@ -3,6 +3,7 @@ package com.github.gleyder42.monowire.common
 import arrow.core.*
 import arrow.core.raise.catch
 import arrow.core.raise.either
+import org.koin.core.annotation.Single
 import java.io.IOException
 import java.nio.file.*
 import java.nio.file.attribute.BasicFileAttributes
@@ -156,27 +157,31 @@ fun Path.moveDirectoryRecursivelyTo(dest: Path) = test(dest, this.parent, ::move
     )
 }
 
-fun Path.safeDeleteRecursively(deleteSource: Boolean = false): IorNel<FileError, Set<Path>> {
-    val errors: FileVisitorErrorSet = mutableSetOf()
-    val deleted = mutableSetOf<Path>()
+@Single
+class PathHelper {
 
-    val visitor = CompositeFileVisitor(
-        preVisitDirectory = ::keepDirectory,
-        visitFile = { file: Path, _: BasicFileAttributes ->
-            file.deleteExisting()
-            deleted.add(file)
-            FileVisitResult.CONTINUE
-        },
-        visitFileFailed = { file, exc -> recordFailError(errors = errors, file = file, exc = exc) },
-        postVisitDirectory = { dir, exc -> deleteDirectory(errors, src = this, deleteSource, dir, exc) }
-    )
-    Files.walkFileTree(this, visitor)
+    fun safeDeleteRecursively(path: Path, deleteSource: Boolean = false): IorNel<FileError, Set<Path>> {
+        val errors: FileVisitorErrorSet = mutableSetOf()
+        val deleted = mutableSetOf<Path>()
 
-    val nonEmptyErrors = errors.toNonEmptyListOrNull()
-    return if (nonEmptyErrors != null) {
-        (nonEmptyErrors to deleted).bothIor()
-    } else {
-        deleted.rightIor()
+        val visitor = CompositeFileVisitor(
+            preVisitDirectory = ::keepDirectory,
+            visitFile = { file: Path, _: BasicFileAttributes ->
+                file.deleteExisting()
+                deleted.add(file)
+                FileVisitResult.CONTINUE
+            },
+            visitFileFailed = { file, exc -> recordFailError(errors = errors, file = file, exc = exc) },
+            postVisitDirectory = { dir, exc -> deleteDirectory(errors, src = path, deleteSource, dir, exc) }
+        )
+        Files.walkFileTree(path, visitor)
+
+        val nonEmptyErrors = errors.toNonEmptyListOrNull()
+        return if (nonEmptyErrors != null) {
+            (nonEmptyErrors to deleted).bothIor()
+        } else {
+            deleted.rightIor()
+        }
     }
 }
 

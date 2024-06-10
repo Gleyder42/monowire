@@ -25,7 +25,7 @@ class ModCatalogueTest : KoinTest {
 
     @MethodSource(TestData.TEST_DATA_METHOD_SOURCE)
     @ParameterizedTest
-    fun testAddModIfNotExist(namespace: Path, src: Path, paths: List<Path>) = runTest {
+    fun shouldAddModIfNotExist(namespace: Path, src: Path, paths: List<Path>) = runTest {
         // Arrange
         startKoin {
             modules(
@@ -55,7 +55,7 @@ class ModCatalogueTest : KoinTest {
 
     @MethodSource(TestData.TEST_DATA_METHOD_SOURCE)
     @ParameterizedTest
-    fun testCannotAddDuplicatedMod(namespace: Path, src: Path, paths: List<Path>) = runTest {
+    fun shouldCannotAddDuplicatedMod(namespace: Path, src: Path, paths: List<Path>) = runTest {
         // Arrange
         startKoin {
             modules(

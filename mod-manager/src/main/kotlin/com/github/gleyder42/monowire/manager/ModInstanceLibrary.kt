@@ -25,6 +25,7 @@ class ModInstanceLibrary : KoinComponent {
     private val dataSource by inject<ModInstanceLibraryDataSource>()
     private val gameDirectory by inject<Path>(named("gameDirectory"))
     private val temporary by inject<Path>(named("temporary"))
+    private val pathHelper by inject<PathHelper>()
 
     suspend fun install(feature: ModFeature): Ior<ModInstallError, ModFiles> {
         // Copy the files into the game directory
@@ -99,7 +100,7 @@ class ModInstanceLibrary : KoinComponent {
         when {
             // All files could be moved (aka no failed files)
             nelFailedFiles == null -> {
-                when (val result = temporaryDirectory.safeDeleteRecursively(deleteSource = true)) {
+                when (val result = pathHelper.safeDeleteRecursively(temporaryDirectory, deleteSource = true)) {
                     is Ior.Both -> {
                         val error = ModUninstallError.CannotDeleteTemporaryDirectory(result.leftValue)
                         return (error to result.rightValue).bothIor()
