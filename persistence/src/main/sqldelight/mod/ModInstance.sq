@@ -30,6 +30,20 @@ CREATE TABLE IF NOT EXISTS ModFeature(
     UNIQUE(modId, key, version)
 );
 
+CREATE TABLE IF NOT EXISTS Playset(
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS PlaysetEntry(
+      playset INTEGER NOT NULL REFERENCES Playset(id),
+      key TEXT,
+      modId integer,
+      version text,
+      FOREIGN KEY(key, modId, version) REFERENCES ModFeature(key, modId, version) ON DELETE SET NULL,
+      UNIQUE(playset, modId, key, version)
+);
+
 CREATE TABLE IF NOT EXISTS ModFeatureDependeny(
     modId integer,
     modVersion text,

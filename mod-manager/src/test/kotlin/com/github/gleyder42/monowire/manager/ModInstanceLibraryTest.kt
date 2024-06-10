@@ -2,10 +2,7 @@ package com.github.gleyder42.monowire.manager
 
 import arrow.core.*
 import com.github.gleyder42.monowire.common.*
-import com.github.gleyder42.monowire.common.model.DisplayName
-import com.github.gleyder42.monowire.common.model.ModFiles
-import com.github.gleyder42.monowire.common.model.ModId
-import com.github.gleyder42.monowire.common.model.ModVersion
+import com.github.gleyder42.monowire.common.model.*
 import com.github.gleyder42.monowire.persistence.sql.DatabaseControl
 import com.github.gleyder42.monowire.persistence.sql.SqlDataSourceModule
 import kotlinx.coroutines.test.runTest
@@ -48,35 +45,10 @@ class ModInstanceLibraryTest : KoinTest {
     @ParameterizedTest
     fun shouldInstallModFeature(namespace: Path, src: Path, paths: List<Path>, softly: SoftAssertions) = runTest {
         // Arrange
-        val gamePath = namespace.resolve("game")
-
-        startKoin {
-            modules(
-                SqlDataSourceModule().module,
-                SqlDataSourceModule.sqlDriverModule,
-                module {
-                    single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() }
-                    single<Path>(named(GAME_DIRECTORY)) { gamePath }
-                    single<Path>(named(TEMPORARY_DIRECTORY)) { namespace resolve TEMPORARY_DIRECTORY }
-                }
-            )
-        }
-
-        get<DatabaseControl>().createSchema()
-
-        val mod = ModFeatureImporter.importModFeatureAsMod(
-            src,
-            ModId(10001),
-            ModVersion("1.0.0"),
-            DisplayName("Test Mod")
-        )
-
-        val catalogue = ModCatalogue()
-        catalogue.addMod(mod)
-        val library = ModInstanceLibrary()
+        val (gamePath, _, modLibrary, mod) = modSetup(namespace, src)
 
         // Act
-        val installResult = library.install(mod.features.first())
+        val installResult = modLibrary.install(mod.features.first())
         assertRight(installResult)
 
         // Assert that files are copied to the game directory
@@ -109,34 +81,9 @@ class ModInstanceLibraryTest : KoinTest {
             }
         }
 
-        startKoin {
-            modules(
-                SqlDataSourceModule().module,
-                SqlDataSourceModule.sqlDriverModule,
-                module {
-                    single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() }
-                    single<Path>(named(GAME_DIRECTORY)) { gamePath }
-                    single<Path>(named(TEMPORARY_DIRECTORY)) { namespace resolve TEMPORARY_DIRECTORY }
-                }
-            )
-        }
+        val (_, _, modLibrary, mod) = modSetup(namespace, src, gamePath = gamePath)
 
-        get<DatabaseControl>().createSchema()
-
-        val mod = ModFeatureImporter.importModFeatureAsMod(
-            src,
-            ModId(10001),
-            ModVersion("1.0.0"),
-            DisplayName("Test Mod")
-        )
-        val feature = mod.features.first()
-
-        val modCatalogue = ModCatalogue()
-        val modLibrary = ModInstanceLibrary()
-
-        modCatalogue.addMod(mod)
-
-        val result = modLibrary.install(feature)
+        val result = modLibrary.install(mod.features.first())
         assertLeft(result)
 
         assertThat(result.value).isInstanceOf(ModInstallError.CannotCopyFiles::class.java)
@@ -186,34 +133,9 @@ class ModInstanceLibraryTest : KoinTest {
             }
         }
 
-        startKoin {
-            modules(
-                SqlDataSourceModule().module,
-                SqlDataSourceModule.sqlDriverModule,
-                module {
-                    single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() }
-                    single<Path>(named(GAME_DIRECTORY)) { gamePath }
-                    single<Path>(named(TEMPORARY_DIRECTORY)) { namespace resolve TEMPORARY_DIRECTORY }
-                }
-            )
-        }
+        val (_, _, modLibrary, mod) = modSetup(namespace, src, gamePath = gamePath)
 
-        get<DatabaseControl>().createSchema()
-
-        val mod = ModFeatureImporter.importModFeatureAsMod(
-            src,
-            ModId(10001),
-            ModVersion("1.0.0"),
-            DisplayName("Test Mod")
-        )
-        val feature = mod.features.first()
-
-        val modCatalogue = ModCatalogue()
-        val modLibrary = ModInstanceLibrary()
-
-        modCatalogue.addMod(mod)
-
-        val result = modLibrary.install(feature)
+        val result = modLibrary.install(mod.features.first())
         assertLeft(result)
 
         assertThat(result.value).isInstanceOf(ModInstallError.CannotCopyFiles::class.java)
@@ -235,7 +157,6 @@ class ModInstanceLibraryTest : KoinTest {
         }
     }
 
-
     @MethodSource(TestData.TEST_DATA_METHOD_SOURCE)
     @ParameterizedTest
     fun shouldUninstallModFeature(namespace: Path, src: Path, paths: List<Path>, softly: SoftAssertions) = runTest {
@@ -247,35 +168,13 @@ class ModInstanceLibraryTest : KoinTest {
             }
         }
 
-        startKoin {
-            modules(
-                SqlDataSourceModule().module,
-                SqlDataSourceModule.sqlDriverModule,
-                module {
-                    single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() }
-                    single<Path>(named(GAME_DIRECTORY)) { gamePath }
-                    single<Path>(named(TEMPORARY_DIRECTORY)) { namespace resolve TEMPORARY_DIRECTORY }
-                }
-            )
-        }
+        val (_, _, modLibrary, mod) = modSetup(namespace, src, gamePath = gamePath)
 
-        get<DatabaseControl>().createSchema()
-
-        val mod = ModFeatureImporter.importModFeatureAsMod(
-            src,
-            ModId(10001),
-            ModVersion("1.0.0"),
-            DisplayName("Test Mod")
-        )
-
-        val catalogue = ModCatalogue()
-        catalogue.addMod(mod)
-        val library = ModInstanceLibrary()
         val modFeature = mod.features.first()
-        library.install(modFeature)
+        modLibrary.install(modFeature)
 
         // Act
-        val uninstallResult = library.uninstall(modFeature.descriptor)
+        val uninstallResult = modLibrary.uninstall(modFeature.descriptor)
 
         assertRight(uninstallResult)
 
@@ -327,29 +226,8 @@ class ModInstanceLibraryTest : KoinTest {
             )
         }
 
-        startKoin {
-            modules(
-                SqlDataSourceModule().module,
-                SqlDataSourceModule.sqlDriverModule,
-                module {
-                    single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() }
-                    single<Path>(named(GAME_DIRECTORY)) { gamePath }
-                    single<Path>(named(TEMPORARY_DIRECTORY)) { namespace resolve TEMPORARY_DIRECTORY }
-                }
-            )
-        }
+        val (_, _, _, mod) = modSetup(namespace, src, gamePath = gamePath)
 
-        get<DatabaseControl>().createSchema()
-
-        val mod = ModFeatureImporter.importModFeatureAsMod(
-            src,
-            ModId(10001),
-            ModVersion("1.0.0"),
-            DisplayName("Test Mod")
-        )
-
-        val catalogue = ModCatalogue()
-        catalogue.addMod(mod)
         val library = ModInstanceLibrary()
         val modFeature = mod.features.first()
         library.install(modFeature).getOrElse { fail(it.toString()) }
@@ -379,40 +257,18 @@ class ModInstanceLibraryTest : KoinTest {
         softly: SoftAssertions
     ) = runTest {
         // Arrange
-
         val gameDirectory = namespace resolve GAME_DIRECTORY
-        startKoin {
-            modules(
-                SqlDataSourceModule().module,
-                SqlDataSourceModule.sqlDriverModule,
-                module {
-                    single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() }
-                    single<Path>(named(GAME_DIRECTORY)) { gameDirectory }
-                    single<Path>(named(TEMPORARY_DIRECTORY)) { namespace resolve TEMPORARY_DIRECTORY }
-                }
-            )
-        }
 
-        get<DatabaseControl>().createSchema()
+        val (_, _, modLibrary, mod) = modSetup(namespace, modFeaturePath, gamePath = gameDirectory)
 
-        val library = ModInstanceLibrary()
-        val catalogue = ModCatalogue()
-
-        val mod = ModFeatureImporter.importModFeatureAsMod(
-            modFeaturePath,
-            ModId(10001),
-            ModVersion("1.0.0"),
-            DisplayName("Test Mod")
-        )
-        catalogue.addMod(mod)
         val modFeature = mod.features.first()
 
-        assertRight(library.install(modFeature))
+        assertRight(modLibrary.install(modFeature))
 
         val openedFiles = lockFiles()
         try {
             // Act
-            val result = library.uninstall(modFeature.descriptor)
+            val result = modLibrary.uninstall(modFeature.descriptor)
 
             // Assert
             assertThat(result.mapLeft { it.relativizeTo(gameDirectory) }.map { it.relativizeTo(gameDirectory) })
@@ -429,44 +285,20 @@ class ModInstanceLibraryTest : KoinTest {
         // Arrange
         val gameDirectory = namespace resolve GAME_DIRECTORY
 
-        startKoin {
-            modules(
-                SqlDataSourceModule().module,
-                SqlDataSourceModule.sqlDriverModule,
-                module {
-                    single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() }
-                    single<Path>(named(GAME_DIRECTORY)) { gameDirectory }
-                    single<Path>(named(TEMPORARY_DIRECTORY)) { namespace resolve TEMPORARY_DIRECTORY }
-                }
-            )
-        }
-
-        get<DatabaseControl>().createSchema()
-
-        val library = ModInstanceLibrary()
-        val catalogue = ModCatalogue()
-
         val modFeaturePath = dir(namespace resolve "src") {
             file("modFile.file")
         }
 
-        val mod = ModFeatureImporter.importModFeatureAsMod(
-            modFeaturePath,
-            ModId(10001),
-            ModVersion("1.0.0"),
-            DisplayName("Test Mod")
-        )
+        val (_, _, modLibrary, mod) = modSetup(namespace, modFeaturePath, gamePath = gameDirectory)
 
-        catalogue.addMod(mod)
         val modFeature = mod.features.first()
 
-        assertRight(library.install(modFeature))
-
+        assertRight(modLibrary.install(modFeature))
 
         // Open a FileInputStream, so the file cannot be copied and throws an IOException
         FileInputStream(namespace.resolve(TEMPORARY_DIRECTORY).createFile().toFile()).use { _ ->
             // Act
-            val result = library.uninstall(modFeature.descriptor)
+            val result = modLibrary.uninstall(modFeature.descriptor)
 
             assertLeft(result)
 
@@ -480,35 +312,14 @@ class ModInstanceLibraryTest : KoinTest {
         runTest {
             // Arrange
             val gameDirectory = namespace resolve GAME_DIRECTORY
-            startKoin {
-                modules(
-                    SqlDataSourceModule().module,
-                    SqlDataSourceModule.sqlDriverModule,
-                    module {
-                        single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() }
-                        single<Path>(named(GAME_DIRECTORY)) { gameDirectory }
-                        single<Path>(named(TEMPORARY_DIRECTORY)) { namespace resolve TEMPORARY_DIRECTORY }
-                    }
-                )
-            }
-            get<DatabaseControl>().createSchema()
-
-            val library = ModInstanceLibrary()
-
             val modFeaturePath = dir(namespace resolve "src") {
                 file("modFile.file")
             }
 
-
-            val mod = ModFeatureImporter.importModFeatureAsMod(
-                modFeaturePath,
-                ModId(10001),
-                ModVersion("1.0.0"),
-                DisplayName("Test Mod")
-            )
+            val (_, _, modLibrary, mod) = modSetup(namespace, modFeaturePath, gamePath = gameDirectory)
 
             val modFeature = mod.features.first()
-            val uninstall = library.uninstall(modFeature.descriptor)
+            val uninstall = modLibrary.uninstall(modFeature.descriptor)
             assertLeft(uninstall)
 
             softly.assertThat(uninstall.value).isInstanceOf(ModUninstallError.ModNotInstalled::class.java)
@@ -523,38 +334,14 @@ class ModInstanceLibraryTest : KoinTest {
     ) = runTest {
         // Arrange
         val gameDirectory = namespace resolve GAME_DIRECTORY
-        startKoin {
-            modules(
-                SqlDataSourceModule().module,
-                SqlDataSourceModule.sqlDriverModule,
-                module {
-                    single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() }
-                    single<Path>(named(GAME_DIRECTORY)) { gameDirectory }
-                    single<Path>(named(TEMPORARY_DIRECTORY)) { namespace resolve TEMPORARY_DIRECTORY }
-                }
-            )
-        }
-        get<DatabaseControl>().createSchema()
-
-        val library = ModInstanceLibrary()
-        val catalogue = ModCatalogue()
-
         val modFeaturePath = dir(namespace resolve "src") { }
-
-        val mod = ModFeatureImporter.importModFeatureAsMod(
-            modFeaturePath,
-            ModId(10001),
-            ModVersion("1.0.0"),
-            DisplayName("Test Mod")
-        )
-        assertRight(catalogue.addMod(mod))
-
+        val (_, _, modLibrary, mod) = modSetup(namespace, modFeaturePath, gamePath = gameDirectory)
 
         val modFeature = mod.features.first()
-        library.install(modFeature)
+        modLibrary.install(modFeature)
 
         // Act
-        val result = library.uninstall(modFeature.descriptor)
+        val result = modLibrary.uninstall(modFeature.descriptor)
         assertBoth(result)
 
         // Assert
@@ -572,19 +359,6 @@ class ModInstanceLibraryTest : KoinTest {
         @TempDir namespace: Path, softly: SoftAssertions
     ) = runTest {
         // Arrange
-        startKoin {
-            modules(
-                SqlDataSourceModule().module,
-                SqlDataSourceModule.sqlDriverModule,
-                module {
-                    single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() }
-                    single<Path>(named(GAME_DIRECTORY)) { namespace resolve GAME_DIRECTORY }
-                    single<Path>(named(TEMPORARY_DIRECTORY)) { namespace resolve TEMPORARY_DIRECTORY }
-                }
-            )
-        }
-        get<DatabaseControl>().createSchema()
-
         val srcDir = dir(namespace resolve "src") {
             dir("archive").dir("pc").dir("mod") {
                 file("mod.archive")
@@ -596,18 +370,8 @@ class ModInstanceLibraryTest : KoinTest {
             }
         }
 
-        val mod = ModFeatureImporter.importModFeatureAsMod(
-            srcDir,
-            ModId(10001),
-            ModVersion("1.0.0"),
-            DisplayName("Test Mod")
-        )
+        val (_, _, modLibrary, mod) = modSetup(namespace, srcDir)
         val feature = mod.features.first()
-
-        val modCatalogue = ModCatalogue()
-        val modLibrary = ModInstanceLibrary()
-
-        modCatalogue.addMod(mod)
         assertRight(modLibrary.install(feature))
 
         val resolve = namespace.resolve(TEMPORARY_DIRECTORY)
@@ -616,7 +380,7 @@ class ModInstanceLibraryTest : KoinTest {
         // Act
         val result = modLibrary.uninstall(feature.descriptor)
 
-
+        // Assert
         assertBoth(result)
         assertThat(result.leftValue).isInstanceOf(ModUninstallError.CannotDeleteTemporaryDirectory::class.java)
         val error = result.leftValue as ModUninstallError.CannotDeleteTemporaryDirectory
@@ -635,6 +399,51 @@ class ModInstanceLibraryTest : KoinTest {
     fun teardown() {
         get<DatabaseControl>().close()
         stopKoin()
+    }
+
+    data class ModSetupResult(
+        val gamePath: Path,
+        val modCatalogue: ModCatalogue,
+        val modInstanceLibrary: ModInstanceLibrary,
+        val mod: Mod
+    )
+
+    private suspend fun modSetup(namespace: Path, modSrc: Path, gamePath: Path? = null): ModSetupResult {
+        @Suppress("NAME_SHADOWING")
+        val gamePath = baseSetup(namespace, gamePath)
+        val mod = ModFeatureImporter.importModFeatureAsMod(
+            modSrc,
+            ModId(10001),
+            ModVersion("1.0.0"),
+            DisplayName("Test Mod")
+        )
+
+        val modCatalogue = ModCatalogue()
+        val modLibrary = ModInstanceLibrary()
+
+        modCatalogue.addMod(mod)
+        return ModSetupResult(gamePath, modCatalogue, modLibrary, mod)
+    }
+
+    private suspend fun baseSetup(namespace: Path, gamePath: Path? = null): Path {
+        @Suppress("NAME_SHADOWING")
+        val gamePath = gamePath ?: namespace.resolve("game")
+
+        startKoin {
+            modules(
+                SqlDataSourceModule().module,
+                SqlDataSourceModule.sqlDriverModule,
+                module {
+                    single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() }
+                    single<Path>(named(GAME_DIRECTORY)) { gamePath }
+                    single<Path>(named(TEMPORARY_DIRECTORY)) { namespace resolve TEMPORARY_DIRECTORY }
+                }
+            )
+        }
+
+        get<DatabaseControl>().createSchema()
+
+        return gamePath
     }
 
     private fun Nel<FileError>.relativizeTo(path: Path): Nel<FileError> {
