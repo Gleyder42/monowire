@@ -1,6 +1,5 @@
 package com.github.gleyder42.monowire.persistence.sql
 
-import app.cash.sqldelight.async.coroutines.awaitAsList
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import com.github.gleyder42.monowire.common.model.*

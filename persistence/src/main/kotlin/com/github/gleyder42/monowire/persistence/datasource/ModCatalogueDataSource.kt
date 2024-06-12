@@ -15,6 +15,8 @@ interface ModCatalogueDataSource {
 
     suspend fun getMod(descriptor: ModDescriptor): Mod?
 
+    suspend fun getModFeatures(descriptor: ModDescriptor): List<ModFeature>
+
     suspend fun getModFeature(key: ModFeatureKey, descriptor: ModDescriptor): ModFeature?
 
     suspend fun exists(descriptor: ModDescriptor): Boolean

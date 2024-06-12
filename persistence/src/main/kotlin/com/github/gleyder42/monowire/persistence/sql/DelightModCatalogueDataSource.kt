@@ -4,6 +4,7 @@ import app.cash.sqldelight.async.coroutines.awaitAsList
 import app.cash.sqldelight.async.coroutines.awaitAsOne
 import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import arrow.core.Either
+import arrow.core.mapNotNull
 import com.github.gleyder42.monowire.common.model.*
 import com.github.gleyder42.monowire.persistence.Database
 import com.github.gleyder42.monowire.persistence.catchingTransactionWithResult
@@ -50,7 +51,7 @@ class DelightModCatalogueDataSource : ModCatalogueDataSource, KoinComponent {
             }
         }.mapLeft {
             // Only errors which are considered part of the domain are return as Either
-            when(it.resultCode) {
+            when (it.resultCode) {
                 SQLiteErrorCode.SQLITE_CONSTRAINT_UNIQUE -> ModCatalogueError.DuplicateModError(mod.descriptor)
                 else -> throw it
             }
@@ -58,36 +59,61 @@ class DelightModCatalogueDataSource : ModCatalogueDataSource, KoinComponent {
     }
 
     override suspend fun removeMod(descriptor: ModDescriptor): Boolean {
-        val removedCount = database.catalogueQueries.removeMod(descriptor.id.integer.toLong(), descriptor.version.string).awaitAsOne()
+        val removedCount =
+            database.catalogueQueries.removeMod(descriptor.id.integer.toLong(), descriptor.version.string).awaitAsOne()
         return removedCount >= 1
     }
 
     override suspend fun getMod(descriptor: ModDescriptor): Mod? {
-        val awaitAsOneOrNull = database.catalogueQueries.getMod().awaitAsOneOrNull() ?: return null
+        val modDetail = database.catalogueQueries.getModDetail(descriptor.id.long, descriptor.version.string)
+            .awaitAsOneOrNull() ?: return null
 
-        return with(awaitAsOneOrNull) {
-            val modId = ModId(id.toInt())
-            val modVersion = ModVersion(version)
-            val modAuthor = author?.let { ModAuthor(it) }
+        val modFeatures = getModFeatures(descriptor)
+        return Mod(
+            descriptor,
+            ModDetails(DisplayName(modDetail.displayName), modDetail.author?.let { ModAuthor(it) }),
+            descriptor.version,
+            modFeatures
+        )
+    }
 
-            val modDetails = ModDetails(DisplayName(displayName), modAuthor)
+    override suspend fun getModFeatures(descriptor: ModDescriptor): List<ModFeature> {
+        val getMod = database.catalogueQueries.getCompleteMod(descriptor.id.long, descriptor.version.string)
+            .awaitAsList()
 
-            val modFeatures = database.catalogueQueries.getModFeatures(version, id) { key, modFiles ->
-                ModFeature(
-                    ModPath.of(modFiles),
-                    modVersion,
-                    ModFeatureDescriptor(ModFeatureKey(key), modId),
-                    emptyList()
-                )
-            }.awaitAsList()
+        val entries = getMod
+            .groupBy(
+                { ModFeatureKey(it.key) to ModPath.of(it.modFiles) }
+            ) {
+                if (it.dependencyFeatureKey != null && it.dependencyId != null && it.dependencyVersion != null) {
+                    ModFeatureKey(it.dependencyFeatureKey) to ModDescriptor(
+                        ModId(it.dependencyId),
+                        ModVersion(it.dependencyVersion)
+                    )
+                } else {
+                    null
+                }
+            }.map {
+                val dependencies = it.value.filterNotNull()
+                it.key to dependencies
+            }
 
-            Mod(
-                ModDescriptor(modId, modVersion),
-                modDetails,
-                modVersion,
-                modFeatures
+
+        return entries.map {
+            val (modFeatureKey, modPath) = it.first
+            val modFeatureDescriptor = ModFeatureDescriptor(modFeatureKey, descriptor.id)
+
+            val dependencies = it.second
+                .mapNotNull { (modFeatureKey, modDescriptor) -> getModFeature(modFeatureKey, modDescriptor) }
+                .toList()
+
+            ModFeature(
+                modPath,
+                descriptor.version,
+                modFeatureDescriptor,
+                dependencies
             )
-        }
+        }.toList()
     }
 
     override suspend fun getModFeature(key: ModFeatureKey, descriptor: ModDescriptor): ModFeature? {
@@ -107,8 +133,6 @@ class DelightModCatalogueDataSource : ModCatalogueDataSource, KoinComponent {
 
     override suspend fun exists(descriptor: ModDescriptor): Boolean =
         database.catalogueQueries.exists(descriptor.id.integer.toLong(), descriptor.version.string).awaitAsOne() >= 1
-
-
 }
 
 sealed interface ModCatalogueError {

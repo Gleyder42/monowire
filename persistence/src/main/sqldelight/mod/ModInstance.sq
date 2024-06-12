@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS Files(
 CREATE TABLE IF NOT EXISTS Mod(
     id integer NOT NULL,
     version text NOT NULL,
+    displayName TEXT NOT NULL,
+    author TEXT,
     UNIQUE (id, version)
 );
 
@@ -34,7 +36,7 @@ CREATE TABLE IF NOT EXISTS ModFeatureDependeny(
     modFeatureKey text REFERENCES ModFeature(key) ON DELETE CASCADE,
     dependencyId integer NOT NULL ,
     dependencyVersion text NOT NULL ,
-    dependencyFeatureKey text REFERENCES ModFeature(key) ON DELETE CASCADE,
+    dependencyFeatureKey text NOT NULL REFERENCES ModFeature(key) ON DELETE CASCADE,
     FOREIGN KEY(modId, modVersion) REFERENCES Mod(id, version) ON DELETE CASCADE ,
     FOREIGN KEY(dependencyId, dependencyVersion) REFERENCES Mod(id, version) ON DELETE CASCADE ,
     UNIQUE(modId, modVersion, modFeatureKey, dependencyId, dependencyVersion, dependencyFeatureKey)
@@ -51,12 +53,6 @@ CREATE TABLE IF NOT EXISTS PlaysetEntry(
       version text NOT NULL,
       FOREIGN KEY(featureKey, modId, version) REFERENCES ModFeature(key, modId, version) ON DELETE CASCADE,
       UNIQUE(playset, modId, featureKey, version)
-);
-
-CREATE TABLE IF NOT EXISTS ModDescriptor(
-    id integer NOT NULL,
-    displayName text NOT NULL,
-    author text
 );
 
 CREATE TABLE ModTypeRelation(

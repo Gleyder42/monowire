@@ -1,7 +1,5 @@
-addMod {
-    INSERT INTO Mod(id, version) VALUES (:id, :version);
-    INSERT INTO ModDescriptor(id, displayName, author) VALUES (:id, :displayName, :author);
-}
+addMod:
+INSERT INTO Mod(id, version, displayName, author) VALUES (:id, :version, :displayName, :author);
 
 addModFeature:
 INSERT INTO ModFeature(key, modId, modFiles, version)
@@ -25,10 +23,10 @@ WHERE modId = :modId AND modVersion = :modVersion AND modFeatureKey = :modFeatur
 removeMod:
 DELETE FROM Mod WHERE id == :id AND version == :version RETURNING count();
 
-getMod:
-SELECT Mod.id, Mod.version, ModDescriptor.author, ModDescriptor.displayName
+getModDetail:
+SELECT Mod.id, Mod.version, Mod.author, Mod.displayName
 FROM Mod
-    INNER JOIN ModDescriptor ON Mod.id = ModDescriptor.id;
+WHERE id == :modId AND version == :modVersion;
 
 getModFeatures:
 SELECT key, modFiles FROM ModFeature
@@ -43,13 +41,18 @@ SELECT count() FROM Mod WHERE Mod.id == :id AND Mod.version == :version;
 
 getCompleteMod:
 SELECT
-    feat.key,
-    feat.modFiles,
-    dep.dependencyId,
-    dep.dependencyVersion,
-    dep.dependencyFeatureKey
+    id,
+    feat.version,
+    displayName,
+    author,
+    key,
+    feat.modId,
+    modFiles,
+    dependencyFeatureKey,
+    dependencyId,
+    dependencyVersion
 FROM Mod
-INNER JOIN
-    ModFeature feat ON feat.version = Mod.version AND feat.version = Mod.version,
+    INNER JOIN ModFeature feat ON Mod.version = feat.version AND feat.modId = Mod.id
+LEFT JOIN
     ModFeatureDependeny dep ON dep.modId = Mod.id AND dep.modVersion = Mod.version
 WHERE Mod.id == :modId AND Mod.version == :modVersion;

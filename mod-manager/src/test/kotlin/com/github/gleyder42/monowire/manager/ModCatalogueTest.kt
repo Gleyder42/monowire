@@ -40,7 +40,7 @@ class ModCatalogueTest : KoinTest {
             src,
             ModId(10001),
             ModVersion("1.0.0"),
-            DisplayName("Test Mod")
+            DisplayName(namespace.fileName.toString())
         )
 
         val catalogue = ModCatalogue()
