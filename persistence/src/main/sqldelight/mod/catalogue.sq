@@ -3,10 +3,9 @@ addMod {
     INSERT INTO ModDescriptor(id, displayName, author) VALUES (:id, :displayName, :author);
 }
 
-addModFeature {
-    INSERT INTO ModFeature(key, modId, modFiles, version)
-    VALUES (:modFeatureKey, :modId, :modFiles, :modVersion);
-}
+addModFeature:
+INSERT INTO ModFeature(key, modId, modFiles, version)
+VALUES (:modFeatureKey, :modId, :modFiles, :modVersion);
 
 addModFeatureDependency {
     INSERT INTO ModFeatureDependeny(
@@ -19,20 +18,38 @@ addModFeatureDependency {
     );
 }
 
-removeMod {
-    DELETE FROM Mod WHERE id == :id AND version == :version RETURNING count();
-}
+getModFeatureDependencies:
+SELECT dependencyId, dependencyVersion, dependencyFeatureKey FROM ModFeatureDependeny
+WHERE modId = :modId AND modVersion = :modVersion AND modFeatureKey = :modFeatureKey;
 
-getMod {
-    SELECT Mod.id, Mod.version, ModDescriptor.author, ModDescriptor.displayName
-    FROM Mod
-        INNER JOIN ModDescriptor ON Mod.id = ModDescriptor.id;
-}
+removeMod:
+DELETE FROM Mod WHERE id == :id AND version == :version RETURNING count();
 
-getModFeatures {
-    SELECT key, modFiles FROM ModFeature WHERE ModFeature.version == :version AND ModFeature.modId = :modId;
-}
+getMod:
+SELECT Mod.id, Mod.version, ModDescriptor.author, ModDescriptor.displayName
+FROM Mod
+    INNER JOIN ModDescriptor ON Mod.id = ModDescriptor.id;
 
-exists {
-    SELECT count() FROM Mod WHERE Mod.id == :id AND Mod.version == :version;
-}
+getModFeatures:
+SELECT key, modFiles FROM ModFeature
+WHERE ModFeature.version == :version AND ModFeature.modId = :modId;
+
+getModFeature:
+SELECT modFiles FROM ModFeature
+WHERE version == :version AND modId = :modId AND key = :featureKey;
+
+exists:
+SELECT count() FROM Mod WHERE Mod.id == :id AND Mod.version == :version;
+
+getCompleteMod:
+SELECT
+    feat.key,
+    feat.modFiles,
+    dep.dependencyId,
+    dep.dependencyVersion,
+    dep.dependencyFeatureKey
+FROM Mod
+INNER JOIN
+    ModFeature feat ON feat.version = Mod.version AND feat.version = Mod.version,
+    ModFeatureDependeny dep ON dep.modId = Mod.id AND dep.modVersion = Mod.version
+WHERE Mod.id == :modId AND Mod.version == :modVersion;

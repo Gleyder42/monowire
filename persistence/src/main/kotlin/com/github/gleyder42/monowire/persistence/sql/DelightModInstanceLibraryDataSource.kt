@@ -9,9 +9,10 @@ import org.koin.core.annotation.Single
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import java.nio.file.Path
+import java.util.UUID
 
 @Single
-class SqlModInstanceLibraryDataSource : ModInstanceLibraryDataSource, KoinComponent {
+class DelightModInstanceLibraryDataSource : ModInstanceLibraryDataSource, KoinComponent {
 
     private val database by inject<Database>()
 
@@ -19,7 +20,9 @@ class SqlModInstanceLibraryDataSource : ModInstanceLibraryDataSource, KoinCompon
         val modId = modInstance.modFeatureDescriptor.id.long
         val modVersion = modInstance.version.string
 
+        val instanceId = UUID.randomUUID().toByteArray()
         database.libraryQueries.addModInstance(
+            instanceId = instanceId,
             id = modId,
             version = modVersion,
             featureKey = modInstance.modFeatureDescriptor.key.string,
@@ -27,8 +30,7 @@ class SqlModInstanceLibraryDataSource : ModInstanceLibraryDataSource, KoinCompon
 
         for (file in modInstance.installedFiles) {
             database.libraryQueries.addFileToModInstance(
-                id = modId,
-                version = modVersion,
+                instanceId = instanceId,
                 file = file.toString()
             )
         }
@@ -47,10 +49,10 @@ class SqlModInstanceLibraryDataSource : ModInstanceLibraryDataSource, KoinCompon
             featureKey = descriptor.key.string
         ).awaitAsOneOrNull() ?: return null
 
-        val files = database.libraryQueries.getModInstanceFiles(id = instance.modId, version = instance.version)
-            .awaitAsList()
+        val files = database.libraryQueries.getModInstanceFiles(instanceId = instance.instanceId).awaitAsList()
 
         return ModInstance(
+            ModInstanceId(instance.instanceId),
             files.map { Path.of(it) }.toSet(),
             ModVersion(instance.version),
             ModFeatureDescriptor(ModFeatureKey(instance.featureKey), ModId(instance.modId))

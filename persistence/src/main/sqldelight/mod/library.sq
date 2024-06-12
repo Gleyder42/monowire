@@ -1,25 +1,20 @@
-addModInstance {
-    INSERT INTO ModInstance(modId, version, featureKey)
-    VALUES(:id, :version, :featureKey);
-}
+addModInstance:
+INSERT INTO ModInstance(instanceId, modId, version, featureKey)
+VALUES(:instanceId, :id, :version, :featureKey);
 
-addFileToModInstance {
-    INSERT INTO Files(modId, version, file)
-    VALUES(:id, :version, :file);
-}
+addFileToModInstance:
+INSERT INTO Files(instanceId, file)
+VALUES(:instanceId, :file);
 
-removeModInstance {
-    DELETE FROM ModInstance WHERE modId == :id AND featureKey == :featureKey;
-}
+removeModInstance:
+DELETE FROM ModInstance WHERE modId == :id AND featureKey == :featureKey;
 
-getModInstance {
-    SELECT modId, version, featureKey
-    FROM ModInstance
-    WHERE modId == :id AND featureKey == :featureKey;
-}
+getModInstance:
+SELECT instanceId, modId, version, featureKey
+FROM ModInstance
+WHERE modId == :id AND featureKey == :featureKey;
 
-getModInstanceFiles {
-    SELECT file
-    FROM Files
-    WHERE modId == :id AND version == :version;
-}
+getModInstanceFiles:
+SELECT file
+FROM Files
+WHERE instanceId == :instanceId;

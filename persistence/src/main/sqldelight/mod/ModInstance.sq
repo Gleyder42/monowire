@@ -1,4 +1,5 @@
-CREATE TABLE IF NOT EXISTS ModInstance (
+CREATE TABLE IF NOT EXISTS ModInstance(
+    instanceId BLOB PRIMARY KEY,
     modId integer NOT NULL,
     version text NOT NULL,
     featureKey text NOT NULL,
@@ -8,11 +9,8 @@ CREATE TABLE IF NOT EXISTS ModInstance (
 );
 
 CREATE TABLE IF NOT EXISTS Files(
-    modId integer NOT NULL,
-    version text NOT NULL,
-    file text NOT NULL,
-    FOREIGN KEY(modId, version) REFERENCES Mod(id, version) ON DELETE CASCADE,
-    UNIQUE(modId, version, file)
+    instanceId BLOB NOT NULL REFERENCES ModInstance(instanceId) ON DELETE CASCADE,
+    file text NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Mod(
@@ -30,30 +28,29 @@ CREATE TABLE IF NOT EXISTS ModFeature(
     UNIQUE(modId, key, version)
 );
 
+CREATE TABLE IF NOT EXISTS ModFeatureDependeny(
+    modId integer NOT NULL ,
+    modVersion text NOT NULL ,
+    modFeatureKey text REFERENCES ModFeature(key) ON DELETE CASCADE,
+    dependencyId integer NOT NULL ,
+    dependencyVersion text NOT NULL ,
+    dependencyFeatureKey text REFERENCES ModFeature(key) ON DELETE CASCADE,
+    FOREIGN KEY(modId, modVersion) REFERENCES Mod(id, version) ON DELETE CASCADE ,
+    FOREIGN KEY(dependencyId, dependencyVersion) REFERENCES Mod(id, version) ON DELETE CASCADE ,
+    UNIQUE(modId, modVersion, modFeatureKey, dependencyId, dependencyVersion, dependencyFeatureKey)
+);
+
 CREATE TABLE IF NOT EXISTS Playset(
-    id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL
+    name TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS PlaysetEntry(
-      playset INTEGER NOT NULL REFERENCES Playset(id),
-      key TEXT,
-      modId integer,
-      version text,
-      FOREIGN KEY(key, modId, version) REFERENCES ModFeature(key, modId, version) ON DELETE SET NULL,
-      UNIQUE(playset, modId, key, version)
-);
-
-CREATE TABLE IF NOT EXISTS ModFeatureDependeny(
-    modId integer,
-    modVersion text,
-    modFeatureKey text REFERENCES ModFeature(key) ON DELETE SET NULL,
-    dependencyId integer,
-    dependencyVersion text,
-    dependencyFeatureKey text REFERENCES ModFeature(key),
-    FOREIGN KEY(modId, modVersion) REFERENCES Mod(id, version) ON DELETE SET NULL ,
-    FOREIGN KEY(dependencyId, dependencyVersion) REFERENCES Mod(id, version) ON DELETE SET NULL ,
-    UNIQUE(modId, modVersion, modFeatureKey, dependencyId, dependencyVersion, dependencyFeatureKey)
+      playset TEXT NOT NULL REFERENCES Playset(name),
+      featureKey TEXT NOT NULL,
+      modId integer NOT NULL,
+      version text NOT NULL,
+      FOREIGN KEY(featureKey, modId, version) REFERENCES ModFeature(key, modId, version) ON DELETE CASCADE,
+      UNIQUE(playset, modId, featureKey, version)
 );
 
 CREATE TABLE IF NOT EXISTS ModDescriptor(
@@ -79,6 +76,7 @@ CREATE TABLE IF NOT EXISTS ClothingModTypeItem(
     clothingKey text UNIQUE NOT NULL,
     modTypeKey text NOT NULL,
     modId integer NOT NULL,
+
     FOREIGN KEY(clothingKey) REFERENCES ClothingItem(key),
     FOREIGN KEY(modTypeKey) REFERENCES ClothingModType(key),
     FOREIGN KEY(modId) REFERENCES Mod(id)

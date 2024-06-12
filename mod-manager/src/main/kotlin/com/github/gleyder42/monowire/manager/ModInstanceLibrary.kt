@@ -2,10 +2,7 @@ package com.github.gleyder42.monowire.manager
 
 import arrow.core.*
 import com.github.gleyder42.monowire.common.*
-import com.github.gleyder42.monowire.common.model.ModFeature
-import com.github.gleyder42.monowire.common.model.ModFeatureDescriptor
-import com.github.gleyder42.monowire.common.model.ModFiles
-import com.github.gleyder42.monowire.common.model.ModInstance
+import com.github.gleyder42.monowire.common.model.*
 import com.github.gleyder42.monowire.persistence.datasource.ModInstanceLibraryDataSource
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -55,6 +52,7 @@ class ModInstanceLibrary : KoinComponent {
 
         // Update the changes
         val modInstance = ModInstance(
+            ModInstanceId.random(),
             copyResult.toDest,
             feature.version,
             feature.descriptor

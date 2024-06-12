@@ -14,7 +14,7 @@ import org.koin.core.component.inject
 import org.sqlite.SQLiteErrorCode
 
 @Single
-class SqlModCatalogueDataSource : ModCatalogueDataSource, KoinComponent {
+class DelightModCatalogueDataSource : ModCatalogueDataSource, KoinComponent {
 
     private val database by inject<Database>()
 
@@ -90,9 +90,24 @@ class SqlModCatalogueDataSource : ModCatalogueDataSource, KoinComponent {
         }
     }
 
+    override suspend fun getModFeature(key: ModFeatureKey, descriptor: ModDescriptor): ModFeature? {
+        val modPath = database.catalogueQueries.getModFeature(
+            version = descriptor.version.string,
+            modId = descriptor.id.long,
+            featureKey = key.string
+        ).awaitAsOneOrNull() ?: return null
+
+        return ModFeature(
+            ModPath.of(modPath),
+            descriptor.version,
+            ModFeatureDescriptor(key, descriptor.id),
+            emptyList()
+        )
+    }
 
     override suspend fun exists(descriptor: ModDescriptor): Boolean =
         database.catalogueQueries.exists(descriptor.id.integer.toLong(), descriptor.version.string).awaitAsOne() >= 1
+
 
 }
 

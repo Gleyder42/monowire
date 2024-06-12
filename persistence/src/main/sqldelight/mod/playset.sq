@@ -1,0 +1,29 @@
+createPlayset {
+    INSERT INTO Playset(name) VALUES(:key);
+}
+
+addModToPlayset {
+    INSERT INTO PlaysetEntry(playset, featureKey, modId, version)
+    VALUES(:playsetKey, :featureKey, :modId, :modVersion);
+}
+
+getPlaysetModFeatures:
+SELECT modId, version, featureKey FROM PlaysetEntry
+WHERE playset == :playsetKey;
+
+getPlaysetModFeatures2:
+SELECT DISTINCT
+        PlaysetEntry.modId,
+        PlaysetEntry.featureKey,
+        PlaysetEntry.version,
+        ModFeature.modFiles
+FROM PlaysetEntry
+INNER JOIN
+    ModFeature ON PlaysetEntry.featureKey = ModFeature.key AND
+                    PlaysetEntry.modId = ModFeature.modId AND
+                    PlaysetEntry.version = ModFeature.version
+INNER JOIN
+    ModFeatureDependeny ON PlaysetEntry.modId = ModFeatureDependeny.modId AND
+                            PlaysetEntry.version = ModFeatureDependeny.modVersion AND
+                            PlaysetEntry.featureKey = ModFeatureDependeny.modFeatureKey
+WHERE playset == :playsetKey;
