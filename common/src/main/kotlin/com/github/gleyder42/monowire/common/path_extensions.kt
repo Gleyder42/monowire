@@ -16,14 +16,14 @@ typealias IOResult<T> = Either<IOException, T>
 
 
 /**
- * Infix function for [Path.resolve]
+ * Infix function for [Path]
  */
-infix fun Path.resolve(other: Path): Path = this.resolve(other)
+infix fun Path.`⫽`(other: Path): Path = this.resolve(other)
 
 /**
- * Infix function for [Path.resolve]
+ * Infix function for [Path]
  */
-infix fun Path.resolve(other: String): Path = this.resolve(other)
+infix fun Path.`⫽`(other: String): Path = this.resolve(other)
 
 /**
  * List all paths recursively inside the directory.
@@ -343,7 +343,7 @@ private fun addFileOperations(
     toDest: MutableSet<Path>
 ): FileVisitResult {
     val relativePath = anchor.relativize(file)
-    val destPath = dest resolve relativePath
+    val destPath = dest `⫽` relativePath
 
     val successful = action(file, destPath)
     if (successful) {

@@ -33,15 +33,15 @@ class PathExtensionTest {
     @ParameterizedTest
     fun shouldCopyDirectorySiblingsRecursively(namespace: Path, srcDir: Path, paths: List<Path>, softly: SoftAssertions) {
         // Arrange
-        val dest = namespace resolve "dest"
+        val dest = namespace `⫽` "dest"
         dest.createDirectories()
 
         // Act
         val copyResult = srcDir.copyDirectorySiblingsRecursivelyTo(dest).getOrElse { fail(it.toString()) }
 
         // Assert
-        val expectedSrc = paths.map { srcDir resolve it }
-        val expectedDest = paths.map { dest resolve it }
+        val expectedSrc = paths.map { srcDir `⫽` it }
+        val expectedDest = paths.map { dest `⫽` it }
         softly.assertThat(copyResult.fromSrc).containsExactlyInAnyOrderElementsOf(expectedSrc)
         softly.assertThat(copyResult.toDest).containsExactlyInAnyOrderElementsOf(expectedDest)
         softly.assertThat(srcDir.listFilesRecursively().getOrElse { emptyList() }).containsExactlyInAnyOrderElementsOf(expectedSrc)
@@ -52,15 +52,15 @@ class PathExtensionTest {
     @ParameterizedTest
     fun shouldCopyDirectoryRecursively(namespace: Path, srcDir: Path, paths: List<Path>, softly: SoftAssertions) {
         // Arrange
-        val dest = namespace resolve "dest"
+        val dest = namespace `⫽` "dest"
         dest.createDirectories()
 
         // Act
         val copyResult = srcDir.copyDirectoryRecursivelyTo(dest).getOrElse { fail(it.toString()) }
 
         // Assert
-        val expectedSrc = paths.map { srcDir resolve it }
-        val expectedDest = paths.map { dest resolve TestData.SRC_NAME resolve it }
+        val expectedSrc = paths.map { srcDir `⫽` it }
+        val expectedDest = paths.map { dest `⫽` TestData.SRC_NAME `⫽` it }
         softly.assertThat(copyResult.fromSrc).containsExactlyInAnyOrderElementsOf(expectedSrc)
         softly.assertThat(copyResult.toDest).containsExactlyInAnyOrderElementsOf(expectedDest)
         softly.assertThat(srcDir.listFilesRecursively().getOrElse { emptyList() }).containsExactlyInAnyOrderElementsOf(expectedSrc)
@@ -71,15 +71,15 @@ class PathExtensionTest {
     @ParameterizedTest
     fun shouldMoveDirectorySiblingsRecursively(namespace: Path, srcDir: Path, paths: List<Path>, softly: SoftAssertions) {
         // Arrange
-        val dest = namespace resolve "dest"
+        val dest = namespace `⫽` "dest"
         dest.createDirectories()
 
         // Act
         val copyResult = srcDir.moveDirectorySiblingsRecursivelyTo(dest).getOrElse { fail(it.toString()) }
 
         // Assert
-        val expectedSrc = paths.map { srcDir resolve it }
-        val expectedDest = paths.map { dest resolve it }
+        val expectedSrc = paths.map { srcDir `⫽` it }
+        val expectedDest = paths.map { dest `⫽` it }
         softly.assertThat(copyResult.fromSrc).containsExactlyInAnyOrderElementsOf(expectedSrc)
         softly.assertThat(copyResult.toDest).containsExactlyInAnyOrderElementsOf(expectedDest)
         softly.assertThat(srcDir).isEmptyDirectory()
@@ -90,15 +90,15 @@ class PathExtensionTest {
     @ParameterizedTest
     fun shouldMoveDirectoryRecursively(namespace: Path, srcDir: Path, paths: List<Path>, softly: SoftAssertions) {
         // Arrange
-        val dest = namespace resolve "dest"
+        val dest = namespace `⫽` "dest"
         dest.createDirectories()
 
         // Act
         val copyResult = srcDir.moveDirectoryRecursivelyTo(dest).getOrElse { fail(it.toString()) }
 
         // Assert
-        val expectedSrc = paths.map { srcDir resolve it }
-        val expectedDest = paths.map { dest resolve TestData.SRC_NAME resolve it }
+        val expectedSrc = paths.map { srcDir `⫽` it }
+        val expectedDest = paths.map { dest `⫽` TestData.SRC_NAME `⫽` it }
         softly.assertThat(copyResult.fromSrc).containsExactlyInAnyOrderElementsOf(expectedSrc)
         softly.assertThat(copyResult.toDest).containsExactlyInAnyOrderElementsOf(expectedDest)
         softly.assertThat(srcDir).doesNotExist()
@@ -112,7 +112,7 @@ class PathExtensionTest {
         val deletedPaths = PathHelper().safeDeleteRecursively(srcDir, deleteSource = true).getOrElse { fail(it.toString()) }
 
         // Assert
-        val expectedSrc = paths.map { srcDir resolve it }
+        val expectedSrc = paths.map { srcDir `⫽` it }
         softly.assertThat(deletedPaths).containsExactlyInAnyOrderElementsOf(expectedSrc)
         softly.assertThat(srcDir).doesNotExist()
     }
@@ -120,7 +120,7 @@ class PathExtensionTest {
     @Test
     fun shouldThrowExceptionWhenListingNotExistentFile(@TempDir namespace: Path) {
         // Arrange
-        val path = namespace resolve "nonExistentFile.txt"
+        val path = namespace `⫽` "nonExistentFile.txt"
 
         // Act
         val result = path.listFilesRecursively()
@@ -135,11 +135,11 @@ class PathExtensionTest {
     fun shouldFileWhenMovingLockedFile(@TempDir namespace: Path) {
         // Arrange
         val name = "openFile.txt"
-        val (path, builder) = scopedDir(namespace resolve "src") {
+        val (path, builder) = scopedDir(namespace `⫽` "src") {
             file(name, lockFile = true)
         }
 
-        val dest = dir(namespace resolve "dest")
+        val dest = dir(namespace `⫽` "dest")
 
         builder.use {
             // Act
@@ -156,12 +156,12 @@ class PathExtensionTest {
     fun shouldFileNotFileWhenCopyingLockedFile(@TempDir namespace: Path, softly: SoftAssertions) {
         // Arrange
         val name = "openFile.txt"
-        val (path, builder) = scopedDir(namespace resolve "src") {
+        val (path, builder) = scopedDir(namespace `⫽` "src") {
             file(name, lockFile = true)
         }
 
         builder.use {
-            val dest = dir(namespace resolve "dest")
+            val dest = dir(namespace `⫽` "dest")
 
             // Act
             val result = path.copyDirectorySiblingsRecursivelyTo(dest)
@@ -179,13 +179,13 @@ class PathExtensionTest {
         // Arrange
         val lockedFileName = "openFile.txt"
         val notLockedFile = "notLockedFile.txt"
-        val (path, builder) = scopedDir(namespace resolve "src") {
+        val (path, builder) = scopedDir(namespace `⫽` "src") {
             file(lockedFileName, lockFile = true)
             file(notLockedFile, lockFile = false)
         }
 
         builder.use {
-            val dest = dir(namespace resolve "dest")
+            val dest = dir(namespace `⫽` "dest")
 
             // Act
             val result = path.moveDirectorySiblingsRecursivelyTo(dest)

@@ -3,7 +3,6 @@ package com.github.gleyder42.monowire.manager
 import arrow.core.Either
 import arrow.core.Ior
 import arrow.core.NonEmptyList
-import arrow.core.computations.ResultEffect.bind
 import arrow.core.raise.either
 import com.github.gleyder42.monowire.common.*
 import com.github.gleyder42.monowire.common.model.*
@@ -40,7 +39,7 @@ class ModCatalogue : KoinComponent {
 
             for (importFeaturePath in modFeaturePaths) {
                 val modFeatureKey = ModFeatureKey(importFeaturePath.last().toString())
-                val modFeaturePath = modCatalogueDir resolve modFeatureKey.string
+                val modFeaturePath = modCatalogueDir `⫽` modFeatureKey.string
                 importFeaturePath.moveDirectoryRecursivelyTo(modCatalogueDir)
                     .conservativeToEither()
                     .mapLeft { ModImportError.CannotCopyDirectory(it) }

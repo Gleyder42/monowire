@@ -79,7 +79,7 @@ class ModCatalogueTest : KoinTest {
     @Suppress("JUnitMalformedDeclaration")
     @MethodSource("testData")
     @ParameterizedTest
-    fun test(
+    fun shouldLoadModsFromImportDir(
         namespace: Path,
         import: Path,
         expected: Mod,
@@ -88,7 +88,7 @@ class ModCatalogueTest : KoinTest {
         // Setup
         val (_, modCatalogue, _) = setupDependencies(namespace)
 
-        val modCatalogueDir = dir(namespace resolve MOD_CATALOGUE_DIR)
+        val modCatalogueDir = dir(namespace `⫽`  MOD_CATALOGUE_DIR)
 
         loadKoinModules(module {
             single(named(ModCatalogue.MOD_IMPORT_DIR_KEY)) { import }
@@ -121,9 +121,9 @@ class ModCatalogueTest : KoinTest {
             val import = "import"
 
             val argument = { modSrcBuilder: PathBuilderFunction, expected: Mod ->
-                dir(namespace resolve import, modSrcBuilder)
+                dir(namespace `⫽` import, modSrcBuilder)
 
-                Arguments.of(namespace, namespace resolve import, expected)
+                Arguments.of(namespace, namespace `⫽` import, expected)
             }
 
             return arrayOf(
@@ -150,19 +150,19 @@ class ModCatalogueTest : KoinTest {
                         DisplayName("modName"),
                         features = setOf(
                             ModFeature(
-                                namespace resolve MOD_CATALOGUE_DIR resolve "modFeatureOne",
+                                namespace `⫽` MOD_CATALOGUE_DIR `⫽` "modFeatureOne",
                                 ModId(10002),
                                 ModVersion("1.0.0"),
                                 ModFeatureKey("modFeatureOne")
                             ),
                             ModFeature(
-                                namespace resolve MOD_CATALOGUE_DIR resolve "modFeatureTwo",
+                                namespace `⫽` MOD_CATALOGUE_DIR `⫽` "modFeatureTwo",
                                 ModId(10002),
                                 ModVersion("1.0.0"),
                                 ModFeatureKey("modFeatureTwo")
                             ),
                             ModFeature(
-                                namespace resolve MOD_CATALOGUE_DIR resolve "modFeatureThree",
+                                namespace `⫽` MOD_CATALOGUE_DIR `⫽` "modFeatureThree",
                                 ModId(10002),
                                 ModVersion("1.0.0"),
                                 ModFeatureKey("modFeatureThree")

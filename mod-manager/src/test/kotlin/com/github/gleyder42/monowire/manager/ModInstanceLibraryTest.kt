@@ -74,7 +74,7 @@ class ModInstanceLibraryTest : KoinTest {
             }
         }
 
-        val src = dir(namespace resolve "src") {
+        val src = dir(namespace `⫽` "src") {
             dir("archive").dir("pc").dir("mod") {
                 file("mod.archive")
                 file("mod.xl")
@@ -126,7 +126,7 @@ class ModInstanceLibraryTest : KoinTest {
             }
         }
 
-        val src = dir(namespace resolve "src") {
+        val src = dir(namespace `⫽` "src") {
             dir("archive").dir("pc").dir("mod") {
                 file("mod.archive")
                 file("mod.xl")
@@ -165,7 +165,7 @@ class ModInstanceLibraryTest : KoinTest {
     @ParameterizedTest
     fun shouldUninstallModFeature(namespace: Path, src: Path, paths: List<Path>, softly: SoftAssertions) = runTest {
         // Arrange
-        val gamePath = dir(namespace resolve "game") {
+        val gamePath = dir(namespace `⫽` "game") {
             dir("otherMod") {
                 file("mod.xl")
                 file("mod2.xl")
@@ -193,7 +193,7 @@ class ModInstanceLibraryTest : KoinTest {
             .containsExactlyInAnyOrderElementsOf(paths)
 
         softly.assertThat((uninstallResult as Ior.Right).value)
-            .containsExactlyInAnyOrderElementsOf(paths.map { gamePath resolve it })
+            .containsExactlyInAnyOrderElementsOf(paths.map { gamePath `⫽` it })
     }
 
     @Test
@@ -206,7 +206,7 @@ class ModInstanceLibraryTest : KoinTest {
             )
         }
 
-        val src = dir(namespace resolve "src") {
+        val src = dir(namespace `⫽` "src") {
             dir("archive").dir("pc").dir("mod") {
                 file("mod.archive")
                 file("mod.xl")
@@ -217,7 +217,7 @@ class ModInstanceLibraryTest : KoinTest {
             }
         }
 
-        val gamePath = dir(namespace resolve "game") {
+        val gamePath = dir(namespace `⫽` "game") {
             dir("archive").dir("pc").dir("mod") {
                 file("otherMod.archive")
                 file("otherMod.xl")
@@ -242,10 +242,10 @@ class ModInstanceLibraryTest : KoinTest {
         assertRight(uninstallResult)
 
         softly.assertThat(gamePath.listFilesRecursivelyOrEmpty())
-            .containsExactlyInAnyOrderElementsOf(otherGamePaths.map { gamePath resolve it })
+            .containsExactlyInAnyOrderElementsOf(otherGamePaths.map { gamePath `⫽` it })
 
         softly.assertThat((uninstallResult as Ior.Right).value)
-            .containsExactlyInAnyOrderElementsOf(paths.map { gamePath resolve it })
+            .containsExactlyInAnyOrderElementsOf(paths.map { gamePath `⫽` it })
     }
 
     // false positive
@@ -261,7 +261,7 @@ class ModInstanceLibraryTest : KoinTest {
         softly: SoftAssertions
     ) = runTest {
         // Arrange
-        val gameDirectory = namespace resolve GAME_DIRECTORY
+        val gameDirectory = namespace `⫽` GAME_DIRECTORY
 
         val (_, _, modLibrary, mod) = setupMod(namespace, modFeaturePath, gamePath = gameDirectory)
 
@@ -287,9 +287,9 @@ class ModInstanceLibraryTest : KoinTest {
     @Test
     fun shouldReturnCannotCreateTemporaryDirectory(@TempDir namespace: Path, softly: SoftAssertions) = runTest {
         // Arrange
-        val gameDirectory = namespace resolve GAME_DIRECTORY
+        val gameDirectory = namespace `⫽` GAME_DIRECTORY
 
-        val modFeaturePath = dir(namespace resolve "src") {
+        val modFeaturePath = dir(namespace `⫽` "src") {
             file("modFile.file")
         }
 
@@ -315,8 +315,8 @@ class ModInstanceLibraryTest : KoinTest {
     fun shouldReturnErrorWhenUninstallingModThatDoesNotExist(@TempDir namespace: Path, softly: SoftAssertions) =
         runTest {
             // Arrange
-            val gameDirectory = namespace resolve GAME_DIRECTORY
-            val modFeaturePath = dir(namespace resolve "src") {
+            val gameDirectory = namespace `⫽` GAME_DIRECTORY
+            val modFeaturePath = dir(namespace `⫽` "src") {
                 file("modFile.file")
             }
 
@@ -337,8 +337,8 @@ class ModInstanceLibraryTest : KoinTest {
         @TempDir namespace: Path, softly: SoftAssertions
     ) = runTest {
         // Arrange
-        val gameDirectory = namespace resolve GAME_DIRECTORY
-        val modFeaturePath = dir(namespace resolve "src") { }
+        val gameDirectory = namespace `⫽` GAME_DIRECTORY
+        val modFeaturePath = dir(namespace `⫽` "src") { }
         val (_, _, modLibrary, mod) = setupMod(namespace, modFeaturePath, gamePath = gameDirectory)
 
         val modFeature = mod.features.first()
@@ -362,7 +362,7 @@ class ModInstanceLibraryTest : KoinTest {
         @TempDir namespace: Path, softly: SoftAssertions
     ) = runTest {
         // Arrange
-        val srcDir = dir(namespace resolve "src") {
+        val srcDir = dir(namespace `⫽` "src") {
             dir("archive").dir("pc").dir("mod") {
                 file("mod.archive")
                 file("mod.xl")
@@ -434,7 +434,7 @@ class ModInstanceLibraryTest : KoinTest {
         @TempDir namespace: Path, softly: SoftAssertions
     ) = runTest {
         // Arrange
-        val srcDir = dir(namespace resolve "src") {
+        val srcDir = dir(namespace `⫽` "src") {
             dir("archive").dir("pc").dir("mod") {
                 file("mod.archive")
                 file("mod.xl")
@@ -505,7 +505,7 @@ class ModInstanceLibraryTest : KoinTest {
         @TempDir namespace: Path, softly: SoftAssertions
     ) = runTest {
         // Arrange
-        val srcDir = dir(namespace resolve "src") {
+        val srcDir = dir(namespace `⫽` "src") {
             dir("archive").dir("pc").dir("mod") {
                 file("mod.archive")
                 file("mod.xl")
@@ -614,11 +614,11 @@ class ModInstanceLibraryTest : KoinTest {
                               dirBuilder: ScopedPathBuilderFunction,
                               lock: Set<Path>,
                               result: Ior<ModUninstallError, ModFiles> ->
-                val namespace = workingDir resolve name
+                val namespace = workingDir `⫽` name
 
                 val lockFiles = { lock.map { FileInputStream(namespace.resolve(it).toFile()) } }
 
-                val (path, scopedBuilder) = scopedDir(namespace resolve fs.getPath("src"), dirBuilder)
+                val (path, scopedBuilder) = scopedDir(namespace `⫽` fs.getPath("src"), dirBuilder)
                 Arguments.of(namespace, path, scopedBuilder, lockFiles, result)
             }
 

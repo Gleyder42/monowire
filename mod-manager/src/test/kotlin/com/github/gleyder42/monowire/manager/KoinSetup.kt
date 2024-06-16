@@ -4,7 +4,7 @@ import com.github.gleyder42.monowire.common.CommonModule
 import com.github.gleyder42.monowire.common.model.DisplayName
 import com.github.gleyder42.monowire.common.model.ModId
 import com.github.gleyder42.monowire.common.model.ModVersion
-import com.github.gleyder42.monowire.common.resolve
+import com.github.gleyder42.monowire.common.`⫽`
 import com.github.gleyder42.monowire.manager.ModInstanceLibraryTest.ModSetupResult
 import com.github.gleyder42.monowire.persistence.sql.DatabaseControl
 import com.github.gleyder42.monowire.persistence.sql.DelightDataSourceModule
@@ -32,7 +32,7 @@ object KoinSetup {
                 module {
                     single<String>(DelightDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() }
                     single<Path>(named(GAME_DIRECTORY)) { gamePath }
-                    single<Path>(named(TEMPORARY_DIRECTORY)) { namespace resolve TEMPORARY_DIRECTORY }
+                    single<Path>(named(TEMPORARY_DIRECTORY)) { namespace `⫽` TEMPORARY_DIRECTORY }
                 }
             )
         }

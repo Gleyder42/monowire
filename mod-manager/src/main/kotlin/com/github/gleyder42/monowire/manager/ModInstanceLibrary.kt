@@ -72,7 +72,7 @@ class ModInstanceLibrary : KoinComponent {
             return (ModUninstallError.ModHasNoFiles(descriptor) to emptySet<Path>()).bothIor()
         }
 
-        val temporaryDirectory = temporary resolve UUID.randomUUID().toString()
+        val temporaryDirectory = temporary `⫽` UUID.randomUUID().toString()
 
         try {
             temporaryDirectory.createDirectories()
