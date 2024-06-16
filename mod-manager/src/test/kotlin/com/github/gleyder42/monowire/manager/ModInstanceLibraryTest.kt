@@ -2,9 +2,10 @@ package com.github.gleyder42.monowire.manager
 
 import arrow.core.*
 import com.github.gleyder42.monowire.common.*
-import com.github.gleyder42.monowire.common.model.*
+import com.github.gleyder42.monowire.common.model.Mod
+import com.github.gleyder42.monowire.common.model.ModFiles
+import com.github.gleyder42.monowire.manager.KoinSetup.setupMod
 import com.github.gleyder42.monowire.persistence.sql.DatabaseControl
-import com.github.gleyder42.monowire.persistence.sql.SqlDataSourceModule
 import io.mockk.every
 import io.mockk.mockkClass
 import kotlinx.coroutines.test.runTest
@@ -20,11 +21,7 @@ import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
-import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
-import org.koin.core.qualifier.named
-import org.koin.dsl.module
-import org.koin.ksp.generated.module
 import org.koin.test.KoinTest
 import org.koin.test.get
 import org.koin.test.junit5.mock.MockProviderExtension
@@ -37,9 +34,6 @@ import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.createFile
 
-private const val GAME_DIRECTORY = "gameDirectory"
-
-private const val TEMPORARY_DIRECTORY = "temporary"
 
 @ExtendWith(RepresentationExtension::class)
 @ExtendWith(SoftAssertionsExtension::class)
@@ -55,7 +49,7 @@ class ModInstanceLibraryTest : KoinTest {
     @ParameterizedTest
     fun shouldInstallModFeature(namespace: Path, src: Path, paths: List<Path>, softly: SoftAssertions) = runTest {
         // Arrange
-        val (gamePath, _, modLibrary, mod) = modSetup(namespace, src)
+        val (gamePath, _, modLibrary, mod) = setupMod(namespace, src)
 
         // Act
         val installResult = modLibrary.install(mod.features.first())
@@ -91,7 +85,7 @@ class ModInstanceLibraryTest : KoinTest {
             }
         }
 
-        val (_, _, modLibrary, mod) = modSetup(namespace, src, gamePath = gamePath)
+        val (_, _, modLibrary, mod) = setupMod(namespace, src, gamePath = gamePath)
 
         val result = modLibrary.install(mod.features.first())
         assertLeft(result)
@@ -143,7 +137,7 @@ class ModInstanceLibraryTest : KoinTest {
             }
         }
 
-        val (_, _, modLibrary, mod) = modSetup(namespace, src, gamePath = gamePath)
+        val (_, _, modLibrary, mod) = setupMod(namespace, src, gamePath = gamePath)
 
         val result = modLibrary.install(mod.features.first())
         assertLeft(result)
@@ -178,7 +172,7 @@ class ModInstanceLibraryTest : KoinTest {
             }
         }
 
-        val (_, _, modLibrary, mod) = modSetup(namespace, src, gamePath = gamePath)
+        val (_, _, modLibrary, mod) = setupMod(namespace, src, gamePath = gamePath)
 
         val modFeature = mod.features.first()
         modLibrary.install(modFeature)
@@ -236,7 +230,7 @@ class ModInstanceLibraryTest : KoinTest {
             )
         }
 
-        val (_, _, _, mod) = modSetup(namespace, src, gamePath = gamePath)
+        val (_, _, _, mod) = setupMod(namespace, src, gamePath = gamePath)
 
         val library = ModInstanceLibrary()
         val modFeature = mod.features.first()
@@ -269,7 +263,7 @@ class ModInstanceLibraryTest : KoinTest {
         // Arrange
         val gameDirectory = namespace resolve GAME_DIRECTORY
 
-        val (_, _, modLibrary, mod) = modSetup(namespace, modFeaturePath, gamePath = gameDirectory)
+        val (_, _, modLibrary, mod) = setupMod(namespace, modFeaturePath, gamePath = gameDirectory)
 
         val modFeature = mod.features.first()
 
@@ -299,7 +293,7 @@ class ModInstanceLibraryTest : KoinTest {
             file("modFile.file")
         }
 
-        val (_, _, modLibrary, mod) = modSetup(namespace, modFeaturePath, gamePath = gameDirectory)
+        val (_, _, modLibrary, mod) = setupMod(namespace, modFeaturePath, gamePath = gameDirectory)
 
         val modFeature = mod.features.first()
 
@@ -326,7 +320,7 @@ class ModInstanceLibraryTest : KoinTest {
                 file("modFile.file")
             }
 
-            val (_, _, modLibrary, mod) = modSetup(namespace, modFeaturePath, gamePath = gameDirectory)
+            val (_, _, modLibrary, mod) = setupMod(namespace, modFeaturePath, gamePath = gameDirectory)
 
             val modFeature = mod.features.first()
             val uninstall = modLibrary.uninstall(modFeature.descriptor)
@@ -345,7 +339,7 @@ class ModInstanceLibraryTest : KoinTest {
         // Arrange
         val gameDirectory = namespace resolve GAME_DIRECTORY
         val modFeaturePath = dir(namespace resolve "src") { }
-        val (_, _, modLibrary, mod) = modSetup(namespace, modFeaturePath, gamePath = gameDirectory)
+        val (_, _, modLibrary, mod) = setupMod(namespace, modFeaturePath, gamePath = gameDirectory)
 
         val modFeature = mod.features.first()
         modLibrary.install(modFeature)
@@ -379,7 +373,7 @@ class ModInstanceLibraryTest : KoinTest {
             }
         }
 
-        val (_, _, modLibrary, mod) = modSetup(namespace, srcDir)
+        val (_, _, modLibrary, mod) = setupMod(namespace, srcDir)
 
         declareMock<PathHelper> {
             val fs = namespace.fileSystem
@@ -451,7 +445,7 @@ class ModInstanceLibraryTest : KoinTest {
             }
         }
 
-        val (_, _, modLibrary, mod) = modSetup(namespace, srcDir)
+        val (_, _, modLibrary, mod) = setupMod(namespace, srcDir)
 
         declareMock<PathHelper> {
             val fs = namespace.fileSystem
@@ -522,7 +516,7 @@ class ModInstanceLibraryTest : KoinTest {
             }
         }
 
-        val (_, _, modLibrary, mod) = modSetup(namespace, srcDir)
+        val (_, _, modLibrary, mod) = setupMod(namespace, srcDir)
 
         declareMock<PathHelper> {
             val fs = namespace.fileSystem
@@ -590,45 +584,6 @@ class ModInstanceLibraryTest : KoinTest {
         val modInstanceLibrary: ModInstanceLibrary,
         val mod: Mod
     )
-
-    private suspend fun modSetup(namespace: Path, modSrc: Path, gamePath: Path? = null): ModSetupResult {
-        @Suppress("NAME_SHADOWING")
-        val gamePath = baseSetup(namespace, gamePath)
-        val mod = ModFeatureImporter.importModFeatureAsMod(
-            modSrc,
-            ModId(10001),
-            ModVersion("1.0.0"),
-            DisplayName("Test Mod")
-        )
-
-        val modCatalogue = ModCatalogue()
-        val modLibrary = ModInstanceLibrary()
-
-        modCatalogue.addMod(mod)
-        return ModSetupResult(gamePath, modCatalogue, modLibrary, mod)
-    }
-
-    private suspend fun baseSetup(namespace: Path, gamePath: Path? = null): Path {
-        @Suppress("NAME_SHADOWING")
-        val gamePath = gamePath ?: namespace.resolve("game")
-
-        startKoin {
-            modules(
-                SqlDataSourceModule().module,
-                SqlDataSourceModule.sqlDriverModule,
-                CommonModule.module,
-                module {
-                    single<String>(SqlDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() }
-                    single<Path>(named(GAME_DIRECTORY)) { gamePath }
-                    single<Path>(named(TEMPORARY_DIRECTORY)) { namespace resolve TEMPORARY_DIRECTORY }
-                }
-            )
-        }
-
-        get<DatabaseControl>().createSchema()
-
-        return gamePath
-    }
 
     private fun Nel<FileError>.relativizeTo(path: Path): Nel<FileError> {
         return this.map { it.copy(failedFile = path.relativize(it.failedFile)) }

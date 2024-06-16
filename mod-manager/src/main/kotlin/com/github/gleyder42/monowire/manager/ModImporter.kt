@@ -26,13 +26,8 @@ object ModFeatureImporter : KoinComponent {
             descriptor,
             details,
             modVersion,
-            listOf(feature)
+            setOf(feature)
         )
-    }
-
-    fun importFeature(modDescriptor: ModDescriptor, path: ReadOnlyPath): ModFeature {
-        val descriptor = ModFeatureDescriptor(fromPathName(path), modDescriptor.id)
-        return ModFeature(path, modDescriptor.version, descriptor, emptyList())
     }
 
     private fun fromPathName(path: ReadOnlyPath) = ModFeatureKey(path.nameWithoutExtension)

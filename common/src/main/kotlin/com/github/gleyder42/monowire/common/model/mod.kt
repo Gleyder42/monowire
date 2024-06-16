@@ -40,7 +40,58 @@ data class Mod(
     val descriptor: ModDescriptor,
     val details: ModDetails,
     val version: ModVersion,
-    val features: List<ModFeature>
+    val features: Set<ModFeature>
+) {
+
+    companion object {
+
+        operator fun invoke(
+            modId: ModId,
+            version: ModVersion,
+            name: DisplayName,
+            author: ModAuthor? = null,
+            features: Set<ModFeature> = emptySet()
+        ): Mod {
+            val modDescriptor = ModDescriptor(modId, version)
+            val modDetails = ModDetails(name, author)
+
+            return Mod(
+                modDescriptor,
+                modDetails,
+                version,
+                features
+            )
+        }
+    }
+}
+
+data class PartialMod(
+    val name: DisplayName,
+    val features: Set<PartialModFeature>
+) {
+    fun toMod(modDescriptor: ModDescriptor, author: ModAuthor? = null)
+        = toMod(modDescriptor.id, modDescriptor.version, author)
+
+    fun toMod(modId: ModId, version: ModVersion, author: ModAuthor? = null): Mod {
+        val modDescriptor = ModDescriptor(modId, version)
+        val modDetails = ModDetails(this.name, author)
+        val modFeatures = this.features.map {
+            val modFeatureDescriptor = ModFeatureDescriptor(it.modFeatureKey, modId)
+            ModFeature(it.modPath, version, modFeatureDescriptor, emptyList())
+        }.toSet()
+
+        return Mod(
+            modDescriptor,
+            modDetails,
+            version,
+            modFeatures,
+        )
+    }
+}
+
+data class PartialModFeature(
+    val modPath: ModPath,
+    val modFeatureKey: ModFeatureKey,
 )
 
 data class ModFeature(
@@ -48,7 +99,26 @@ data class ModFeature(
     val version: ModVersion,
     val descriptor: ModFeatureDescriptor,
     val dependencies: List<ModFeature>,
-)
+) {
+
+    companion object {
+
+        operator fun invoke(
+            modPath: ModPath,
+            id: ModId,
+            version: ModVersion,
+            featureKey: ModFeatureKey,
+            dependencies: List<ModFeature> = emptyList()
+        ): ModFeature {
+            return ModFeature(
+                modPath,
+                version,
+                ModFeatureDescriptor(featureKey, id),
+                dependencies
+            )
+        }
+    }
+}
 
 data class ModFeatureDescriptor(
     val key: ModFeatureKey,

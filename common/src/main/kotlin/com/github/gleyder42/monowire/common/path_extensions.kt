@@ -8,6 +8,12 @@ import java.io.IOException
 import java.nio.file.*
 import java.nio.file.attribute.BasicFileAttributes
 import kotlin.io.path.*
+import kotlin.io.path.deleteExisting
+import kotlin.io.path.listDirectoryEntries as untypedDirectoryEntries;
+import kotlin.io.path.deleteExisting as untypedDeleteExisting;
+
+typealias IOResult<T> = Either<IOException, T>
+
 
 /**
  * Infix function for [Path.resolve]
@@ -24,12 +30,14 @@ infix fun Path.resolve(other: String): Path = this.resolve(other)
  *
  * Returns [Either.Left] if the path does not exist, otherwise a list of all paths.
  */
-fun Path.listPathsRecursively(filter: (Path) -> Boolean = { true }): Either<IOException, List<Path>> = either {
-    val path = this@listPathsRecursively
-
+fun Path.listPathsRecursively(filter: (Path) -> Boolean = { true }): IOResult<List<Path>> = either {
     catch({
-        Files.walk(path).use { it.skip(1).filter(filter).toList() }
+        Files.walk(this@listPathsRecursively).use { it.skip(1).filter(filter).toList() }
     }) { exception: IOException -> raise(exception) }
+}
+
+fun Path.listDirectoryEntries(glob: String = "*"): IOResult<List<Path>> = either {
+    catch({ this@listDirectoryEntries.untypedDirectoryEntries(glob) }) { exc: IOException -> raise(exc) }
 }
 
 /**
@@ -37,8 +45,12 @@ fun Path.listPathsRecursively(filter: (Path) -> Boolean = { true }): Either<IOEx
  *
  * Returns [Either.Left] if the path does not exist, otherwise a list of all paths.
  */
-fun Path.listFilesRecursively(): Either<IOException, List<Path>> {
+fun Path.listFilesRecursively(): IOResult<List<Path>> {
     return this.listPathsRecursively { !it.isDirectory() }
+}
+
+fun Path.deleteExisting(): IOResult<Unit> = either {
+    catch({this@deleteExisting.untypedDeleteExisting()}) { exc: IOException -> raise(exc) }
 }
 
 fun Path.listFilesRecursivelyOrEmpty(): List<Path> = this.listFilesRecursively().getOrElse { emptyList() }
@@ -65,7 +77,8 @@ fun Path.listFilesRecursivelyOrEmpty(): List<Path> = this.listFilesRecursively()
  *   + g.txt
  * ```
  */
-fun Path.copyDirectorySiblingsRecursivelyTo(dest: Path) = test(dest, this, ::copyAction, ::keepDirectory)
+fun Path.copyDirectorySiblingsRecursivelyTo(dest: Path) =
+    walkFileTree(dest = dest, anchor = this, action = ::copy, postVisitDirectory = ::nothing)
 
 /**
  * Copies all directory to [dest].
@@ -90,7 +103,8 @@ fun Path.copyDirectorySiblingsRecursivelyTo(dest: Path) = test(dest, this, ::cop
  *     + g.txt
  * ```
  */
-fun Path.copyDirectoryRecursivelyTo(dest: Path) = test(dest, this.parent, ::copyAction, ::keepDirectory)
+fun Path.copyDirectoryRecursivelyTo(dest: Path) =
+    walkFileTree(dest = dest, anchor = parent, action = ::copy, postVisitDirectory = ::nothing)
 
 /**
  * Moves all directory siblings to [dest].
@@ -116,12 +130,13 @@ fun Path.copyDirectoryRecursivelyTo(dest: Path) = test(dest, this.parent, ::copy
  *   + g.txt
  * ```
  */
-fun Path.moveDirectorySiblingsRecursivelyTo(dest: Path) = test(
-    dest,
-    this,
-    ::moveAction
-) { errors, dir, exc -> deleteDirectory(errors = errors, src = this, deleteSrc = false, dir = dir, exc = exc) }
-
+fun Path.moveDirectorySiblingsRecursivelyTo(dest: Path) =
+    walkFileTree(
+        dest = dest,
+        anchor = this,
+        action = ::move,
+        postVisitDirectory = { errors, dir, exc -> deleteDirectory(errors = errors, src = this, deleteSrc = false, dir = dir, exc = exc) }
+    )
 
 /**
  * Copies all directory to [dest].
@@ -147,15 +162,21 @@ fun Path.moveDirectorySiblingsRecursivelyTo(dest: Path) = test(
  *     + g.txt
  * ```
  */
-fun Path.moveDirectoryRecursivelyTo(dest: Path) = test(dest, this.parent, ::moveAction) { errors, dir, exc ->
-    deleteDirectory(
-        errors = errors,
-        src = this,
-        deleteSrc = true,
-        dir = dir,
-        exc = exc
+fun Path.moveDirectoryRecursivelyTo(dest: Path) =
+    walkFileTree(
+        dest = dest,
+        anchor = parent,
+        action = ::move,
+        postVisitDirectory = { errors, dir, exc ->
+            deleteDirectory(
+                errors = errors,
+                src = this,
+                deleteSrc = true,
+                dir = dir,
+                exc = exc
+            )
+        }
     )
-}
 
 @Single
 class PathHelper {
@@ -165,13 +186,13 @@ class PathHelper {
         val deleted = mutableSetOf<Path>()
 
         val visitor = CompositeFileVisitor(
-            preVisitDirectory = ::keepDirectory,
+            preVisitDirectory = ::nothing,
             visitFile = { file: Path, _: BasicFileAttributes ->
                 file.deleteExisting()
                 deleted.add(file)
                 FileVisitResult.CONTINUE
             },
-            visitFileFailed = { file, exc -> recordFailError(errors = errors, file = file, exc = exc) },
+            visitFileFailed = { file, exc -> addError(errors = errors, file = file, exc = exc) },
             postVisitDirectory = { dir, exc -> deleteDirectory(errors, src = path, deleteSource, dir, exc) }
         )
         Files.walkFileTree(path, visitor)
@@ -235,11 +256,11 @@ typealias FileVisitorErrorSet = MutableSet<FileError>
 
 // This method should do nothing, therefore parameters are not used
 @Suppress("UNUSED_PARAMETER")
-private fun keepDirectory(path: Path, attr: BasicFileAttributes) = FileVisitResult.CONTINUE
+private fun nothing(path: Path, attr: BasicFileAttributes) = FileVisitResult.CONTINUE
 
 // This method should do nothing, therefore parameters are not used
 @Suppress("UNUSED_PARAMETER")
-private fun keepDirectory(errors: FileVisitorErrorSet, dir: Path, exc: IOException?) = FileVisitResult.CONTINUE
+private fun nothing(errors: FileVisitorErrorSet, dir: Path, exc: IOException?) = FileVisitResult.CONTINUE
 
 private fun deleteDirectory(
     errors: FileVisitorErrorSet,
@@ -263,12 +284,14 @@ private fun deleteDirectory(
     return FileVisitResult.CONTINUE
 }
 
-private fun Path.setup(setup: (fromSrc: MutableSet<Path>, toDest: MutableSet<Path>, errors: FileVisitorErrorSet) -> FileVisitor<Path>): IorNel<FileError, CopyResult> {
+private fun Path.walkFileTree(
+    createVisitor: (fromSrc: MutableSet<Path>, toDest: MutableSet<Path>, errors: FileVisitorErrorSet) -> FileVisitor<Path>
+): IorNel<FileError, CopyResult> {
     val fromSrc: MutableSet<Path> = mutableSetOf()
     val toDest: MutableSet<Path> = mutableSetOf()
     val errors: FileVisitorErrorSet = mutableSetOf()
 
-    val visitor = setup(fromSrc, toDest, errors)
+    val visitor = createVisitor(fromSrc, toDest, errors)
     Files.walkFileTree(this, visitor)
 
     val result = CopyResult(fromSrc = fromSrc, toDest = toDest)
@@ -276,17 +299,17 @@ private fun Path.setup(setup: (fromSrc: MutableSet<Path>, toDest: MutableSet<Pat
     return (errors to result).ior { result.isEmpty }
 }
 
-private fun Path.test(
+private fun Path.walkFileTree(
     dest: Path,
     anchor: Path,
     action: (srcPath: Path, destPath: Path) -> Unit,
     postVisitDirectory: (errors: FileVisitorErrorSet, dir: Path, exc: IOException?) -> FileVisitResult
 ): IorNel<FileError, CopyResult> {
-    return setup { fromSrc, toDest, errors ->
+    return this@walkFileTree.walkFileTree { fromSrc, toDest, errors ->
         CompositeFileVisitor(
-            preVisitDirectory = ::keepDirectory,
+            preVisitDirectory = ::nothing,
             visitFile = { file: Path, _: BasicFileAttributes ->
-                visitAndLogFile(
+                addFileOperations(
                     action = { srcPath, destPath ->
                         try {
                             action(srcPath, destPath)
@@ -305,13 +328,13 @@ private fun Path.test(
                     toDest = toDest
                 )
             },
-            visitFileFailed = { file, exc -> recordFailError(errors = errors, file = file, exc = exc) },
+            visitFileFailed = { file, exc -> addError(errors = errors, file = file, exc = exc) },
             postVisitDirectory = { dir, exc -> postVisitDirectory(errors, dir, exc) }
         )
     }
 }
 
-private fun visitAndLogFile(
+private fun addFileOperations(
     action: (srcPath: Path, destPath: Path) -> Boolean,
     file: Path,
     dest: Path,
@@ -331,17 +354,17 @@ private fun visitAndLogFile(
     return FileVisitResult.CONTINUE
 }
 
-private fun copyAction(srcPath: Path, destPath: Path) {
+private fun copy(srcPath: Path, destPath: Path) {
     destPath.createParentDirectories()
     srcPath.copyTo(destPath)
 }
 
-private fun moveAction(srcPath: Path, destPath: Path) {
+private fun move(srcPath: Path, destPath: Path) {
     destPath.createParentDirectories()
     srcPath.moveTo(destPath)
 }
 
-private fun recordFailError(errors: FileVisitorErrorSet, file: Path, exc: IOException): FileVisitResult {
+private fun addError(errors: FileVisitorErrorSet, file: Path, exc: IOException): FileVisitResult {
     errors.add(FileError(file, exc))
     return FileVisitResult.CONTINUE
 }

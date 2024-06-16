@@ -4,7 +4,6 @@ import app.cash.sqldelight.async.coroutines.awaitAsList
 import app.cash.sqldelight.async.coroutines.awaitAsOne
 import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import arrow.core.Either
-import arrow.core.mapNotNull
 import com.github.gleyder42.monowire.common.model.*
 import com.github.gleyder42.monowire.persistence.Database
 import com.github.gleyder42.monowire.persistence.catchingTransactionWithResult
@@ -77,7 +76,7 @@ class DelightModCatalogueDataSource : ModCatalogueDataSource, KoinComponent {
         )
     }
 
-    override suspend fun getModFeatures(descriptor: ModDescriptor): List<ModFeature> {
+    override suspend fun getModFeatures(descriptor: ModDescriptor): Set<ModFeature> {
         val getMod = database.catalogueQueries.getCompleteMod(descriptor.id.long, descriptor.version.string)
             .awaitAsList()
 
@@ -113,7 +112,7 @@ class DelightModCatalogueDataSource : ModCatalogueDataSource, KoinComponent {
                 modFeatureDescriptor,
                 dependencies
             )
-        }.toList()
+        }.toSet()
     }
 
     override suspend fun getModFeature(key: ModFeatureKey, descriptor: ModDescriptor): ModFeature? {
