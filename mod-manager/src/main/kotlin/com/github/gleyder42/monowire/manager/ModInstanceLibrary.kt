@@ -26,27 +26,33 @@ class ModInstanceLibrary : KoinComponent {
 
     suspend fun install(feature: ModFeature): Ior<ModInstallError, ModFiles> {
         // Copy the files into the game directory
-        val copyResult = when (val copyResult = feature.modPath.copyDirectorySiblingsRecursivelyTo(gameDirectory)) {
+
+        val copyResult = when (val copyResult = with(pathHelper) { feature.modPath.copyDirectorySiblingsRecursivelyTo(gameDirectory) }) {
+            // No files were copied
             is Ior.Left -> return ModInstallError.CannotCopyFiles(copyResult.value).leftIor()
+            // Some files were copied
             is Ior.Both -> {
                 val wereCopied = copyResult.rightValue.toDest.toMutableSet()
 
                 val cannotBeDeleted = mutableSetOf<FileError>()
-                for (path in copyResult.rightValue.toDest) {
-                    when (val result = path.safeDelete()) {
-                        is Either.Left -> cannotBeDeleted.add(result.value)
-                        is Either.Right -> wereCopied.remove(result.value)
+                wereCopied.removeIf { path ->
+                    when (val result = with(pathHelper) { path.safeDelete() }) {
+                        is Either.Left -> {
+                            cannotBeDeleted.add(result.value)
+                            false
+                        }
+                        is Either.Right -> true
                     }
                 }
 
                 val nelCannotBeDeleted = cannotBeDeleted.toNonEmptyListOrNull()
                 if (nelCannotBeDeleted != null) {
-                    val error = ModInstallError.CannotCleanUpFiles(nelCannotBeDeleted)
-                    return (error to wereCopied).bothIor()
+                    return ModInstallError.CannotCleanUpFiles(nelCannotBeDeleted).leftIor()
                 }
 
                 return ModInstallError.CannotCopyFiles(copyResult.leftValue).leftIor()
             }
+            // All files were copied
             is Ior.Right -> copyResult.value
         }
 
@@ -103,6 +109,7 @@ class ModInstanceLibrary : KoinComponent {
                         val error = ModUninstallError.CannotDeleteTemporaryDirectory(result.leftValue)
                         return (error to result.rightValue).bothIor()
                     }
+
                     is Ior.Left -> return ModUninstallError.CannotDeleteTemporaryDirectory(result.value).leftIor()
                     is Ior.Right -> return movedFiles.map { it.src }.toSet().rightIor()
                 }
@@ -128,6 +135,7 @@ class ModInstanceLibrary : KoinComponent {
                         val error = ModUninstallError.CannotMoveFiles(nelFailedFiles)
                         (error to emptySet<Path>()).bothIor()
                     }
+
                     else -> {
                         ModUninstallError.CannotRecoverFiles(failedRecoveryFiles.toNonEmptySetOrNull()!!).leftIor()
                     }
@@ -143,7 +151,7 @@ sealed interface ModInstallError {
 
     data class CannotCopyFiles(val files: NonEmptyList<FileError>) : ModInstallError
 
-    data class CannotCleanUpFiles(val error: NonEmptyList<FileError>) : ModInstallError
+    data class CannotCleanUpFiles(val errors: NonEmptyList<FileError>) : ModInstallError
 }
 
 sealed interface ModUninstallError {

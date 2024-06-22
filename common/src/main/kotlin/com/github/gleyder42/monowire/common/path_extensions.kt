@@ -55,30 +55,6 @@ fun Path.deleteExisting(): IOResult<Unit> = either {
 
 fun Path.listFilesRecursivelyOrEmpty(): List<Path> = this.listFilesRecursively().getOrElse { emptyList() }
 
-/**
- * Copies all directory siblings to [dest].
- *
- * Missing parent directories are automatically created.
- *
- * # Example
- * ```
- * Src:
- * a
- * + b.txt
- * + c.txt
- * + d
- *   + g.txt
- *
- * Dest:
- * b
- * + b.txt
- * + c.txt
- * + d
- *   + g.txt
- * ```
- */
-fun Path.copyDirectorySiblingsRecursivelyTo(dest: Path) =
-    walkFileTree(dest = dest, anchor = this, action = ::copy, postVisitDirectory = ::nothing)
 
 /**
  * Copies all directory to [dest].
@@ -178,8 +154,49 @@ fun Path.moveDirectoryRecursivelyTo(dest: Path) =
         }
     )
 
+/*
+ * The purpose of the PathHelper is to be mocked.
+ * The methods of the PathHelper are extension functions for java.nio.file.Path.
+ * The extension functions could also exist without the PathHelper, but top level extension functions cannot be
+ * mocked individually. Only a whole file can be mocked.
+ * Therefore, the Path extension functions are inside the PathHelper, because PathHelper can be mocked or be spied and
+ * the extension function can be mocked individually.
+ */
 @Single
 class PathHelper {
+
+    /**
+     * Copies all directory siblings to [dest].
+     *
+     * Missing parent directories are automatically created.
+     *
+     * # Example
+     * ```
+     * Src:
+     * a
+     * + b.txt
+     * + c.txt
+     * + d
+     *   + g.txt
+     *
+     * Dest:
+     * b
+     * + b.txt
+     * + c.txt
+     * + d
+     *   + g.txt
+     * ```
+     */
+    fun Path.copyDirectorySiblingsRecursivelyTo(dest: Path) =
+        walkFileTree(dest = dest, anchor = this, action = ::copy, postVisitDirectory = ::nothing)
+
+
+    fun Path.safeDelete(): Either<FileError, Path> = either {
+        catch({
+            this@safeDelete.deleteExisting()
+            this@safeDelete
+        }) { exception: IOException -> raise(FileError(this@safeDelete, exception)) }
+    }
 
     fun safeDeleteRecursively(path: Path, deleteSource: Boolean = false): IorNel<FileError, Set<Path>> {
         val errors: FileVisitorErrorSet = mutableSetOf()
@@ -206,12 +223,6 @@ class PathHelper {
     }
 }
 
-fun Path.safeDelete(): Either<FileError, Path> = either {
-    catch({
-        this@safeDelete.deleteExisting()
-        this@safeDelete
-    }) { exception: IOException -> raise(FileError(this@safeDelete, exception)) }
-}
 
 /**
  * Result class for a copy or move operation
@@ -229,6 +240,11 @@ data class CopyResult(
 ) {
     val isEmpty: Boolean
         get() = fromSrc.isEmpty() && toDest.isEmpty()
+
+    companion object {
+
+        fun both(paths: Set<Path>) = CopyResult(paths, paths)
+    }
 }
 
 data class FileError(val failedFile: Path, val exception: IOException) {

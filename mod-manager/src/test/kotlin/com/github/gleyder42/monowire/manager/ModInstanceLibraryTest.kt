@@ -8,6 +8,7 @@ import com.github.gleyder42.monowire.manager.KoinSetup.setupMod
 import com.github.gleyder42.monowire.persistence.sql.DatabaseControl
 import io.mockk.every
 import io.mockk.mockkClass
+import io.mockk.spyk
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.SoftAssertions
@@ -25,6 +26,7 @@ import org.koin.core.context.stopKoin
 import org.koin.test.KoinTest
 import org.koin.test.get
 import org.koin.test.junit5.mock.MockProviderExtension
+import org.koin.test.mock.MockProvider
 import org.koin.test.mock.declareMock
 import java.io.FileInputStream
 import java.io.IOException
@@ -42,7 +44,10 @@ class ModInstanceLibraryTest : KoinTest {
     @JvmField
     @RegisterExtension
     val mockProvider = MockProviderExtension.create { clazz ->
-        mockkClass(clazz)
+        when  {
+            clazz == PathHelper::class -> spyk(PathHelper())
+            else -> mockkClass(clazz)
+        }
     }
 
     @MethodSource(TestData.TEST_DATA_METHOD_SOURCE)
@@ -501,10 +506,11 @@ class ModInstanceLibraryTest : KoinTest {
     }
 
     @Test
-    fun `should return error when mod files cannot be recoverd from temporary directory`(
+    fun `should return error when mod files cannot be recovered from temporary directory`(
         @TempDir namespace: Path, softly: SoftAssertions
     ) = runTest {
         // Arrange
+
         val srcDir = dir(namespace `⫽` "src") {
             dir("archive").dir("pc").dir("mod") {
                 file("mod.archive")
@@ -571,6 +577,60 @@ class ModInstanceLibraryTest : KoinTest {
         }
     }
 
+    @Test
+    fun `should remove copied files if all files could not be copied`(
+        @TempDir namespace: Path, softly: SoftAssertions
+    ) = runTest {
+        // Arrange
+        val srcDir = dir(namespace `⫽` "src") {
+            dir("archive").dir("pc").dir("mod") {
+                file("mod.archive")
+                file("mod.xl")
+            }
+
+            dir("r6").dir("tweaks").dir("mod") {
+                file("mod.yaml")
+            }
+        }
+
+        val (_, _, modLibrary, mod) = setupMod(namespace, srcDir)
+        val fs = namespace.fileSystem
+        val stagedErrors = nonEmptyListOf(
+            FileError(
+                fs.getPath("archive", "pc", "mod", "mod.archive"),
+                IOException()
+            ),
+            FileError(
+                fs.getPath("archive", "pc", "mod", "mod.xl"),
+                IOException()
+            ),
+        )
+
+        declareMock<PathHelper> {
+            every {
+                srcDir.copyDirectorySiblingsRecursivelyTo(any())
+            } returns Ior.Both(
+                leftValue = stagedErrors,
+                rightValue = CopyResult.both(setOf(fs.getPath("r6", "tweaks", "mod", "mod.yaml")))
+            )
+
+            every {
+                fs.getPath("r6", "tweaks", "mod", "mod.yaml").safeDelete()
+            } returns FileError(
+                fs.getPath("r6", "tweaks", "mod", "mod.yaml"),
+                IOException()
+            ).left()
+        }
+
+        val result = modLibrary.install(mod.features.first())
+
+        // Assert
+        assertLeft(result)
+
+        softly.assertThat(result.value).isInstanceOf(ModInstallError.CannotCleanUpFiles::class.java)
+        val error = result.value as ModInstallError.CannotCleanUpFiles
+        softly.assertThat(error.errors.first().failedFile).isEqualTo(fs.getPath("r6", "tweaks", "mod", "mod.yaml"))
+    }
 
     @AfterEach
     fun teardown() {

@@ -12,12 +12,16 @@ import org.junit.jupiter.api.fail
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import org.koin.core.component.inject
+import org.koin.test.KoinTest
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
 
 @ExtendWith(SoftAssertionsExtension::class)
 class PathExtensionTest {
+
+    private val pathHelper = PathHelper()
 
     @MethodSource(TEST_DATA_METHOD_SOURCE)
     @ParameterizedTest
@@ -31,21 +35,30 @@ class PathExtensionTest {
 
     @MethodSource(TEST_DATA_METHOD_SOURCE)
     @ParameterizedTest
-    fun shouldCopyDirectorySiblingsRecursively(namespace: Path, srcDir: Path, paths: List<Path>, softly: SoftAssertions) {
+    fun shouldCopyDirectorySiblingsRecursively(
+        namespace: Path,
+        srcDir: Path,
+        paths: List<Path>,
+        softly: SoftAssertions
+    ) {
         // Arrange
         val dest = namespace `⫽` "dest"
         dest.createDirectories()
 
         // Act
-        val copyResult = srcDir.copyDirectorySiblingsRecursivelyTo(dest).getOrElse { fail(it.toString()) }
+        val copyResult = with(pathHelper) {
+            srcDir.copyDirectorySiblingsRecursivelyTo(dest).getOrElse { fail(it.toString()) }
+        }
 
         // Assert
         val expectedSrc = paths.map { srcDir `⫽` it }
         val expectedDest = paths.map { dest `⫽` it }
         softly.assertThat(copyResult.fromSrc).containsExactlyInAnyOrderElementsOf(expectedSrc)
         softly.assertThat(copyResult.toDest).containsExactlyInAnyOrderElementsOf(expectedDest)
-        softly.assertThat(srcDir.listFilesRecursively().getOrElse { emptyList() }).containsExactlyInAnyOrderElementsOf(expectedSrc)
-        softly.assertThat(dest.listFilesRecursively().getOrElse { emptyList() }).containsExactlyInAnyOrderElementsOf(expectedDest)
+        softly.assertThat(srcDir.listFilesRecursively().getOrElse { emptyList() })
+            .containsExactlyInAnyOrderElementsOf(expectedSrc)
+        softly.assertThat(dest.listFilesRecursively().getOrElse { emptyList() })
+            .containsExactlyInAnyOrderElementsOf(expectedDest)
     }
 
     @MethodSource(TEST_DATA_METHOD_SOURCE)
@@ -63,13 +76,20 @@ class PathExtensionTest {
         val expectedDest = paths.map { dest `⫽` TestData.SRC_NAME `⫽` it }
         softly.assertThat(copyResult.fromSrc).containsExactlyInAnyOrderElementsOf(expectedSrc)
         softly.assertThat(copyResult.toDest).containsExactlyInAnyOrderElementsOf(expectedDest)
-        softly.assertThat(srcDir.listFilesRecursively().getOrElse { emptyList() }).containsExactlyInAnyOrderElementsOf(expectedSrc)
-        softly.assertThat(dest.listFilesRecursively().getOrElse { emptyList() }).containsExactlyInAnyOrderElementsOf(expectedDest)
+        softly.assertThat(srcDir.listFilesRecursively().getOrElse { emptyList() })
+            .containsExactlyInAnyOrderElementsOf(expectedSrc)
+        softly.assertThat(dest.listFilesRecursively().getOrElse { emptyList() })
+            .containsExactlyInAnyOrderElementsOf(expectedDest)
     }
 
     @MethodSource(TEST_DATA_METHOD_SOURCE)
     @ParameterizedTest
-    fun shouldMoveDirectorySiblingsRecursively(namespace: Path, srcDir: Path, paths: List<Path>, softly: SoftAssertions) {
+    fun shouldMoveDirectorySiblingsRecursively(
+        namespace: Path,
+        srcDir: Path,
+        paths: List<Path>,
+        softly: SoftAssertions
+    ) {
         // Arrange
         val dest = namespace `⫽` "dest"
         dest.createDirectories()
@@ -83,7 +103,8 @@ class PathExtensionTest {
         softly.assertThat(copyResult.fromSrc).containsExactlyInAnyOrderElementsOf(expectedSrc)
         softly.assertThat(copyResult.toDest).containsExactlyInAnyOrderElementsOf(expectedDest)
         softly.assertThat(srcDir).isEmptyDirectory()
-        softly.assertThat(dest.listFilesRecursively().getOrElse { emptyList() }).containsExactlyInAnyOrderElementsOf(expectedDest)
+        softly.assertThat(dest.listFilesRecursively().getOrElse { emptyList() })
+            .containsExactlyInAnyOrderElementsOf(expectedDest)
     }
 
     @MethodSource(TEST_DATA_METHOD_SOURCE)
@@ -102,14 +123,16 @@ class PathExtensionTest {
         softly.assertThat(copyResult.fromSrc).containsExactlyInAnyOrderElementsOf(expectedSrc)
         softly.assertThat(copyResult.toDest).containsExactlyInAnyOrderElementsOf(expectedDest)
         softly.assertThat(srcDir).doesNotExist()
-        softly.assertThat(dest.listFilesRecursively().getOrElse { emptyList() }).containsExactlyInAnyOrderElementsOf(expectedDest)
+        softly.assertThat(dest.listFilesRecursively().getOrElse { emptyList() })
+            .containsExactlyInAnyOrderElementsOf(expectedDest)
     }
 
     @MethodSource(TEST_DATA_METHOD_SOURCE)
     @ParameterizedTest
     fun shouldSafeDeleteDirectoryRecursively(namespace: Path, srcDir: Path, paths: List<Path>, softly: SoftAssertions) {
         // Act
-        val deletedPaths = PathHelper().safeDeleteRecursively(srcDir, deleteSource = true).getOrElse { fail(it.toString()) }
+        val deletedPaths =
+            PathHelper().safeDeleteRecursively(srcDir, deleteSource = true).getOrElse { fail(it.toString()) }
 
         // Assert
         val expectedSrc = paths.map { srcDir `⫽` it }
@@ -164,12 +187,12 @@ class PathExtensionTest {
             val dest = dir(namespace `⫽` "dest")
 
             // Act
-            val result = path.copyDirectorySiblingsRecursivelyTo(dest)
+            val result = with(pathHelper) { path.copyDirectorySiblingsRecursivelyTo(dest) }
 
             // Assert
             assertRight(result)
 
-            softly.assertThat((result as Ior.Right).value.fromSrc).allSatisfy {  it.endsWith(name) }
+            softly.assertThat((result as Ior.Right).value.fromSrc).allSatisfy { it.endsWith(name) }
             softly.assertThat(result.value.toDest).allSatisfy { it.endsWith(name) }
         }
     }

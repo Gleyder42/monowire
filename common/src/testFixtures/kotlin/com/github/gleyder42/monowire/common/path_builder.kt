@@ -51,8 +51,15 @@ class ScopedPathBuilder(path: Path) : PathBuilder(path), Closeable {
         }
     }
 
+    fun release() {
+        close()
+    }
+
     override fun close() {
-        openFiles.forEach { it.close() }
+        openFiles.forEach {
+            it.close()
+            println("Closed $it")
+        }
         openFiles.clear()
     }
 }
