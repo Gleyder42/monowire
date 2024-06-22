@@ -8,3 +8,6 @@ build/
 ### IntelliJ IDEA ###
 .idea
 *.iml
+
+nexus-api/secrets.toml
+test.txt

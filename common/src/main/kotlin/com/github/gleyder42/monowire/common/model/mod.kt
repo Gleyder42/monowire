@@ -16,6 +16,8 @@ value class ModId(val integer: Int) {
 
     val long: Long
         get() = integer.toLong()
+
+    override fun toString(): String = integer.toString()
 }
 
 @JvmInline
