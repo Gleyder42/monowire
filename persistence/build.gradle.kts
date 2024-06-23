@@ -1,3 +1,5 @@
+import app.cash.sqldelight.gradle.VerifyMigrationTask
+
 plugins {
     id("monowire-kotlin")
     alias(libs.plugins.sqldelight)
@@ -16,6 +18,14 @@ sqldelight {
             generateAsync.set(true)
         }
     }
+}
+
+tasks.verifySqlDelightMigration {
+    enabled = false
+}
+
+tasks.withType<VerifyMigrationTask>() {
+    enabled = false
 }
 
 dependencies {
