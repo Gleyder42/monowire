@@ -1,18 +1,43 @@
 [versions]
+# Kotlin dependency injection framework
+# https://insert-koin.io/
 koin = "3.5.6"
+# Annotions for Kotlin dependency injection framework
+# https://insert-koin.io/docs/reference/koin-annotations/start
 koin-annotation = "1.3.1"
+# Logger
+# https://logback.qos.ch/
 logback = "1.5.6"
+# Test runner
+# https://junit.org/junit5/
 junit = "5.10.2"
+# Assertions library
+# https://assertj.github.io/doc/
 assertj = "3.25.1"
+# Arrow brings idiomatic functional programming to Kotlin
+# https://arrow-kt.io/
 arrow = "1.2.4"
+# A type-safe HTTP client for Android and Java
+# https://square.github.io/retrofit/
 retrofit = "2.11.0"
+# Kotlin test framework
+# https://kotest.io/
 kotest = "5.9.1"
+# Mocking library for Kotlin
+# https://mockk.io/
 mockk = "1.13.11"
+# Parses Json, Toml or other formats to Java classe
+# https://github.com/FasterXML/jackson
 jackson = "2.17.1"
+# Utility methods for testing coroutines
 coroutinesTest = "1.8.1"
+# Library to generate typesafe methods from sql queries
 sqldelight = "2.0.2"
+# Jdby driver for sqlite
 sqliteJdbc = "3.46.0.0"
+# Kotlin gradle plugins
 kotlinGradlePlugin = "2.0.0"
+# ksp is an annotation processing gradle plugin for Kotlin
 ksp = "2.0.0-1.0.22"
 
 [libraries]
