@@ -17,31 +17,32 @@ kotlin {
     compilerOptions.optIn.add("kotlin.contracts.ExperimentalContracts")
 }
 
+// https://github.com/gradle/gradle/issues/15383
+val libs = the<org.gradle.accessors.dm.LibrariesForLibs>()
+
 dependencies {
-    // https://mvnrepository.com/artifact/ch.qos.logback/logback-core
-    implementation("ch.qos.logback:logback-classic:1.5.6")
-    testImplementation("ch.qos.logback:logback-classic:1.5.6")
+    // Every project should have a logger enabled
+    implementation(libs.logback)
+    testImplementation(libs.logback)
 
-    implementation(platform("io.insert-koin:koin-bom:3.5.6"))
-    implementation("io.insert-koin:koin-core")
+    implementation(libs.arrow.core)
+    implementation(libs.arrow.fxCoroutines)
 
-    implementation(platform("io.insert-koin:koin-annotations-bom:1.3.1"))
-    compileOnly("io.insert-koin:koin-annotations:1.3.1")
-    ksp("io.insert-koin:koin-ksp-compiler:1.3.1")
+    // Koin is our dependency injection framework
+    implementation(libs.koin.core)
+    testImplementation(libs.koin.test)
+    testImplementation(libs.koin.testJunit)
+    compileOnly(libs.koin.annotation)
+    testCompileOnly(libs.koin.annotation)
+    ksp(libs.koin.kspCompiler)
 
-    testImplementation(platform("io.insert-koin:koin-annotations-bom:1.3.1"))
-    testCompileOnly("io.insert-koin:koin-annotations:1.3.1")
+    testImplementation(libs.junit.jupiter.params)
+    testFixturesImplementation(libs.junit.jupiter.params)
+
+    testImplementation(libs.assertj.core)
+    testFixturesImplementation(libs.assertj.core)
 
     testImplementation(kotlin("test"))
-    testImplementation("io.insert-koin:koin-test")
-    testImplementation("io.insert-koin:koin-test-junit5")
-
-    testImplementation("com.google.jimfs:jimfs:1.3.0")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
-    testImplementation("org.assertj:assertj-core:3.25.1")
-
-    testFixturesImplementation("org.assertj:assertj-core:3.25.1")
-    testFixturesImplementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
     testFixturesImplementation(kotlin("test"))
 }
 
