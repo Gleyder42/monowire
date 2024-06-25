@@ -19,6 +19,9 @@ class ModHistoryExtractorTest : ShouldSpec({
             59
         )
 
-        println(extractor.extractDownloadedModHistory(input).joinToString("\n"))
+        extractor.extractDownloadedModHistory(input).fold(
+            ifRight = { println(it.joinToString("\n")) },
+            ifLeft =  { println(it) }
+        )
     }
 })
