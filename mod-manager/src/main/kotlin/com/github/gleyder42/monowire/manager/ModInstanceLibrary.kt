@@ -4,9 +4,9 @@ import arrow.core.*
 import com.github.gleyder42.monowire.common.*
 import com.github.gleyder42.monowire.common.model.*
 import com.github.gleyder42.monowire.persistence.datasource.ModInstanceLibraryDataSource
+import org.koin.core.annotation.Single
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import org.koin.core.qualifier.named
 import java.io.IOException
 import java.nio.file.FileAlreadyExistsException
 import java.nio.file.NoSuchFileException
@@ -17,11 +17,12 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.createParentDirectories
 import kotlin.io.path.moveTo
 
+@Single
 class ModInstanceLibrary : KoinComponent {
 
     private val dataSource by inject<ModInstanceLibraryDataSource>()
-    private val gameDirectory by inject<Path>(named("gameDirectory"))
-    private val temporary by inject<Path>(named("temporary"))
+    private val gameDirectory by NamedComponent.gameDirectory()
+    private val temporaryDirectory by NamedComponent.temporaryDirectory()
     private val pathHelper by inject<PathHelper>()
 
     suspend fun install(feature: ModFeature): Ior<ModInstallError, ModFiles> {
@@ -78,7 +79,7 @@ class ModInstanceLibrary : KoinComponent {
             return (ModUninstallError.ModHasNoFiles(descriptor) to emptySet<Path>()).bothIor()
         }
 
-        val temporaryDirectory = temporary `⫽` UUID.randomUUID().toString()
+        val temporaryDirectory = temporaryDirectory `⫽` UUID.randomUUID().toString()
 
         try {
             temporaryDirectory.createDirectories()

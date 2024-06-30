@@ -15,8 +15,6 @@ import org.koin.dsl.module
 import org.koin.ksp.generated.module
 import java.nio.file.Path
 
-const val GAME_DIRECTORY = "gameDirectory"
-const val TEMPORARY_DIRECTORY = "temporary"
 
 object KoinSetup {
 
@@ -31,8 +29,8 @@ object KoinSetup {
                 CommonModule.module,
                 module {
                     single<String>(DelightDataSourceModule.DB_PATH_KEY) { namespace.resolve("database").toString() }
-                    single<Path>(named(GAME_DIRECTORY)) { gamePath }
-                    single<Path>(named(TEMPORARY_DIRECTORY)) { namespace `⫽` TEMPORARY_DIRECTORY }
+                    single<Path>(named(NamedComponent.Key.GAME_DIRECTORY)) { gamePath }
+                    single<Path>(named(NamedComponent.Key.TEMPORARY_DIRECTORY)) { namespace `⫽` NamedComponent.Key.TEMPORARY_DIRECTORY }
                 }
             )
         }

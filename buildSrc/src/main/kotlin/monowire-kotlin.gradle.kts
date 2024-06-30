@@ -32,6 +32,8 @@ dependencies {
     implementation(libs.koin.core)
     testImplementation(libs.koin.test)
     testImplementation(libs.koin.testJunit)
+    testFixturesImplementation(libs.koin.test)
+    testFixturesImplementation(libs.koin.testJunit)
     compileOnly(libs.koin.annotation)
     testCompileOnly(libs.koin.annotation)
     ksp(libs.koin.kspCompiler)
@@ -44,6 +46,17 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testFixturesImplementation(kotlin("test"))
+
+    testImplementation(libs.kotest.assertions.core)
+    testImplementation(libs.kotest.junitRunner)
+    testImplementation(libs.kotest.property)
+    testImplementation(libs.kotest.arrow)
+    testImplementation(libs.kotest.koin)
+
+    testFixturesImplementation(libs.kotest.assertions.core)
+    testFixturesImplementation(libs.kotest.junitRunner)
+    testFixturesImplementation(libs.kotest.property)
+    testFixturesImplementation(libs.kotest.koin)
 }
 
 tasks.test {

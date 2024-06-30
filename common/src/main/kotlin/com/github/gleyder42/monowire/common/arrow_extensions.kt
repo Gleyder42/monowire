@@ -3,6 +3,7 @@ package com.github.gleyder42.monowire.common
 import arrow.core.*
 
 
+
 inline fun <A, B> Pair<Iterable<A>, B>.ior(isEmpty: (B)->Boolean): IorNel<A, B> {
     val nel = first.toNonEmptyListOrNull()
     return when {

@@ -1,29 +1,34 @@
+import arrow.core.getOrElse
+import com.github.gleyder42.monowire.common.getOrThrow
+import com.github.gleyder42.monowire.common.model.ModId
+import com.github.gleyder42.monowire.nexus.Category
+import com.github.gleyder42.monowire.nexus.FileId
+import com.github.gleyder42.monowire.nexus.NexusClient
+import com.github.gleyder42.monowire.nexus.getPreviewFiles
 import io.kotest.core.spec.style.ShouldSpec
-import kotlin.io.path.Path
-import kotlin.io.path.readLines
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 
 class NexusClientTest : ShouldSpec({
+    should("parse time") {
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")
+        val test = "2024-06-25T03:54:46.000+00:00"
+//        val dateTime = LocalDateTime.parse(test, formatter)
+        println(ZonedDateTime.now().format(formatter))
+        println(test)
+    }
+
     should("extract downloaded mods") {
-        val downloadedMods = Path("test.txt").readLines().joinToString(separator = "\n")
-        val startDelimiter = "Mod name\n" +
-                "\tLast DL\n" +
-                "\tUploader\n" +
-                "\tCategory\n" +
-                "\tUpdated\n" +
-                "\tEndorsement\n" +
-                "\tLog"
-        val endDelimiter = "Previous"
+        val nexusClient = NexusClient()
 
-        val output = downloadedMods
-            .replaceBefore(startDelimiter, "")
-            .replace(startDelimiter, "")
-            .replaceAfter(endDelimiter, "")
-            .replace(endDelimiter, "")
-            .trim()
-            .split("View")
-            .map { modLine -> modLine.split(Regex("\\n+")).map { it.trim() }.filter { it.isNotBlank() } }
-            .filter { it.isNotEmpty() }
+        val nexusService = nexusClient.service
+        val result = nexusService.getFiles(
+            ModId(15168),
+            FileId(80987),
+            Category.MAIN
+        ).getOrThrow()
+        println(result)
 
-        println(output)
+        val orThrow = nexusClient.getPreviewFiles(result.contentPreviewLink).getOrThrow()
     }
 })

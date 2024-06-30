@@ -2,8 +2,13 @@ package com.github.gleyder42.monowire.common
 
 import arrow.core.Either
 import arrow.core.Ior
+import arrow.core.getOrElse
 import org.assertj.core.api.Assertions
+import org.jetbrains.annotations.TestOnly
 import kotlin.contracts.contract
+
+@TestOnly
+fun <A, B> Either<A, B>.getOrThrow(): B = getOrElse { throw IllegalArgumentException(it.toString()) }
 
 fun <A, B> assertLeft(actual: Either<A, B>) {
     contract {

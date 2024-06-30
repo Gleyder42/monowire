@@ -5,6 +5,8 @@ import com.github.gleyder42.monowire.common.*
 import com.github.gleyder42.monowire.common.model.Mod
 import com.github.gleyder42.monowire.common.model.ModFiles
 import com.github.gleyder42.monowire.manager.KoinSetup.setupMod
+import com.github.gleyder42.monowire.manager.NamedComponent.Key.GAME_DIRECTORY
+import com.github.gleyder42.monowire.manager.NamedComponent.Key.TEMPORARY_DIRECTORY
 import com.github.gleyder42.monowire.persistence.sql.DatabaseControl
 import io.mockk.every
 import io.mockk.mockkClass
@@ -26,7 +28,6 @@ import org.koin.core.context.stopKoin
 import org.koin.test.KoinTest
 import org.koin.test.get
 import org.koin.test.junit5.mock.MockProviderExtension
-import org.koin.test.mock.MockProvider
 import org.koin.test.mock.declareMock
 import java.io.FileInputStream
 import java.io.IOException

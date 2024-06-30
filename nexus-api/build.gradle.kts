@@ -2,6 +2,10 @@ plugins {
     id("monowire-kotlin")
 }
 
+kotlin.compilerOptions {
+    freeCompilerArgs.add("-Xcontext-receivers")
+}
+
 dependencies {
     implementation(project(":common"))
 
@@ -19,4 +23,8 @@ dependencies {
     implementation(libs.jackson.toml)
     implementation(libs.jackson.kotlin)
     implementation(libs.jackson.databind)
+    implementation(libs.jackson.dateTime)
+
+    implementation(libs.arrow.retrofit)
+    implementation(libs.kotlinx.coroutines.core)
 }

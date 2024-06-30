@@ -8,12 +8,14 @@ import com.github.gleyder42.monowire.common.*
 import com.github.gleyder42.monowire.common.model.*
 import com.github.gleyder42.monowire.persistence.datasource.ModCatalogueDataSource
 import com.github.gleyder42.monowire.persistence.sql.ModCatalogueError
+import org.koin.core.annotation.Single
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.koin.core.qualifier.named
 import java.io.IOException
 import java.nio.file.Path
 
+@Single
 class ModCatalogue : KoinComponent {
 
     companion object {
